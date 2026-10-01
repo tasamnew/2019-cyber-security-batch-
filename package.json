@@ -22,6 +22,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:superadmin": "tsx prisma/superadmin.ts",
+    "db:unlock": "tsx prisma/unlock.ts",
     "db:secure-demo": "tsx prisma/secure-demo.ts",
     "db:reset": "prisma migrate reset --force"
   },
