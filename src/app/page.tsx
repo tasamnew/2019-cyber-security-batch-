@@ -120,6 +120,47 @@ export default async function LandingPage() {
             ))}
           </div>
         </section>
+
+        {/* Section 1 */}
+        <section className="border-t border-border bg-surface/30">
+          <div className="mx-auto max-w-6xl px-6 py-16">
+            <h2 className="text-center text-2xl font-semibold text-text-primary">
+              Section 1
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-text-secondary">
+              Placeholder content for the first section of the landing page.
+            </p>
+
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  icon: '◈',
+                  name: 'Subsection A',
+                  body: 'Replace this card with the content for Section 1.',
+                },
+                {
+                  icon: '▲',
+                  name: 'Subsection B',
+                  body: 'Replace this card with the content for Section 1.',
+                },
+                {
+                  icon: '⬢',
+                  name: 'Subsection C',
+                  body: 'Replace this card with the content for Section 1.',
+                },
+              ].map((item) => (
+                <div
+                  key={item.name}
+                  className="group rounded-xl border border-border bg-surface/60 p-6 transition hover:border-accent-green/40 hover:bg-surface"
+                >
+                  <div className="text-2xl text-accent-green">{item.icon}</div>
+                  <h3 className="mt-4 font-semibold text-text-primary">{item.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-text-secondary">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t border-border py-8">
