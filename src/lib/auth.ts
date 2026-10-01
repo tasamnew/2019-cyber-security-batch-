@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { randomBytes } from 'node:crypto';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
+import { TOKEN_ISSUER, TOKEN_AUDIENCE } from '@/lib/token-claims';
 import type { Role, UserStatus } from '@prisma/client';
 
 /**
@@ -39,8 +40,8 @@ export interface CurrentUser {
   sessionId: string;
 }
 
-const ISSUER = 'cs';
-const AUDIENCE = 'cs-web';
+const ISSUER = TOKEN_ISSUER;
+const AUDIENCE = TOKEN_AUDIENCE;
 
 export async function createSession(
   user: { id: string; email: string; name: string; role: Role; status: UserStatus },

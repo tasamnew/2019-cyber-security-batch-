@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, clearSessionCookie } from '@/lib/auth';
 import { getSettings } from '@/lib/settings';
 import { Sidebar } from '@/components/nav';
 import { AuthProvider } from '@/hooks/use-auth';
@@ -17,7 +17,14 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
-  if (!user) redirect('/login');
+  if (!user) {
+    // The cookie may be present but invalid/expired (revoked session, changed
+    // issuer, rotated AUTH_SECRET). Clearing it stops the middleware from
+    // bouncing /login straight back here, which would loop forever.
+    clearSessionCookie();
+    redirect('/login');
+  }
+
   if (user.status !== 'APPROVED') redirect('/pending');
 
   const settings = await getSettings();
