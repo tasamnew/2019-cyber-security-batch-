@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
  * Recommended source canvas: 512x512 with transparency so it stays sharp on
  * high-DPI screens and in the browser tab.
  */
-const LOGO_SRC = '/logo.svg';
+const LOGO_SRC = '/logo.png';
 
 export function LogoMark({ className }: { className?: string }) {
   return (

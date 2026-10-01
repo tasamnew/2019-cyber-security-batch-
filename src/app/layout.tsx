@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   description:
     'Discussion, resources, CTF practice and assignment tracking for the 2019 Cyber Security student group.',
   icons: {
-    icon: '/logo.svg',
-    shortcut: '/logo.svg',
-    apple: '/logo.svg',
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
   },
   robots: {
     // This is a private student hub: keep it out of search indexes entirely.
