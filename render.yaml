@@ -9,7 +9,7 @@
 
 services:
   - type: web
-    name: cs
+    name: cs-sec-1-60y4
     runtime: node
     plan: free
     branch: main
