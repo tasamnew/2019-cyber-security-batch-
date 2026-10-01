@@ -39,8 +39,8 @@ export interface CurrentUser {
   sessionId: string;
 }
 
-const ISSUER = 'cs-hub';
-const AUDIENCE = 'cs-hub-web';
+const ISSUER = 'cs';
+const AUDIENCE = 'cs-web';
 
 export async function createSession(
   user: { id: string; email: string; name: string; role: Role; status: UserStatus },

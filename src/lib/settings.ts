@@ -19,7 +19,7 @@ export interface SiteSettings {
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
-  siteName: 'CS Hub',
+  siteName: 'CS',
   registrationOpen: true,
   requireApproval: true,
   maintenanceMode: false,

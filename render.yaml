@@ -1,4 +1,4 @@
-# Render Blueprint — one-click deploy of the CS 2019 Hub.
+# Render Blueprint — one-click deploy of CS.
 # Docs: https://render.com/docs/blueprint-spec
 #
 # Free plan: no credit card. Notes:
@@ -9,7 +9,7 @@
 
 services:
   - type: web
-    name: cs-hub
+    name: cs
     runtime: node
     plan: free
     branch: main

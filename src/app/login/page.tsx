@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { AuthForm } from '../auth/auth-form';
 import { LogoLockup } from '@/components/logo';
+import { DEFAULT_SITE_NAME } from '@/lib/brand';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -10,7 +11,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2 font-mono text-lg font-bold">
-          <LogoLockup siteName="CS Hub" />
+          <LogoLockup siteName={DEFAULT_SITE_NAME} />
         </Link>
 
         <div className="card">
@@ -23,7 +24,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-text-tertiary">
-          Private hub. Access is granted by an administrator after registration is approved.
+          Private site. Access is granted by an administrator after registration is approved.
         </p>
       </div>
     </main>

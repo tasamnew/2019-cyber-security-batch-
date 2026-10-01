@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { ToastProvider } from '@/hooks/use-toast';
+import { DEFAULT_SITE_NAME, SITE_TAGLINE } from '@/lib/brand';
 
 export const metadata: Metadata = {
   title: {
-    default: 'CS Hub — 2019 Cyber Security Student Group',
-    template: '%s · CS Hub',
+    default: `CS — ${SITE_TAGLINE}`,
+    template: `%s · ${DEFAULT_SITE_NAME}`,
   },
   description:
     'Discussion, resources, CTF practice and assignment tracking for the 2019 Cyber Security student group.',

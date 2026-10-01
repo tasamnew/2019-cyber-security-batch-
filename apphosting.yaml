@@ -1,4 +1,4 @@
-# Firebase App Hosting configuration for the 2019 Cyber Security cohort hub.
+# Firebase App Hosting configuration for the 2019 Cyber Security cohort.
 # Docs: https://firebase.google.com/docs/app-hosting/configure
 #
 # Create the referenced secrets ONCE with the Firebase CLI (values are never

@@ -1,4 +1,4 @@
-# CS 2019 Hub
+# CS
 
 A collaboration and knowledge-sharing platform for the **2019 Cyber Security Student Group**. It combines a forum, real-time chat, a resource repository, a CTF corner, an assignment tracker and a full admin dashboard behind a role-based, session-revocable auth system.
 
