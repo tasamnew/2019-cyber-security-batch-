@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="CS Hub">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3df5a3"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 2.5 57 11.5V32c0 14.2-10.2 24.6-25 29.5C17.2 56.6 7 46.2 7 32V11.5Z" fill="url(#shield)"/>
+  <path d="M32 8.6 51 15.6v16.2c0 11-8.1 19.3-19 23.6-10.9-4.3-19-12.6-19-23.6V15.6Z" fill="#0b1120"/>
+  <g fill="#3df5a3">
+    <path d="M20.4 27.2 27.6 32l-7.2 4.8 1.9 2.9 9.9-6.6a.9.9 0 0 0 0-1.5l-9.9-6.6Z"/>
+    <path d="M33.6 38.2h10.4v3H33.6Z"/>
+  </g>
+</svg>

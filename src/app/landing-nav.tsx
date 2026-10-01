@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { LogoLockup } from '@/components/logo';
 
 export function LandingNav({ siteName }: { siteName: string }) {
   const { user } = useAuth();
@@ -9,9 +10,8 @@ export function LandingNav({ siteName }: { siteName: string }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg-primary/80 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2 font-mono text-lg font-bold">
-          <span className="text-accent-green">&gt;_</span>
-          <span className="text-text-primary">{siteName}</span>
+        <Link href="/" className="font-mono text-lg font-bold">
+          <LogoLockup siteName={siteName} />
         </Link>
 
         <div className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Avatar, RoleBadge } from '@/components/ui';
+import { LogoLockup } from '@/components/logo';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -52,7 +53,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
         </button>
 
         <Link href="/dashboard" className="font-mono font-bold">
-          <span className="text-accent-green">&gt;_</span> {siteName}
+          <LogoLockup siteName={siteName} />
         </Link>
 
         {user && <Avatar name={user.name} seed={user.avatarSeed} size="xs" />}
@@ -68,7 +69,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
           />
           <nav className="relative h-full w-64 border-r border-border bg-bg-secondary p-4">
             <p className="px-3 pb-3 font-mono text-lg font-bold">
-              <span className="text-accent-green">&gt;_</span> {siteName}
+              <LogoLockup siteName={siteName} />
             </p>
             <NavList items={visible} pathname={pathname} />
           </nav>
@@ -79,7 +80,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-bg-secondary/60 lg:flex">
         <div className="border-b border-border px-5 py-5">
           <Link href="/dashboard" className="font-mono text-lg font-bold">
-            <span className="text-accent-green">&gt;_</span> {siteName}
+            <LogoLockup siteName={siteName} />
           </Link>
           <p className="mt-0.5 font-mono text-[0.65rem] uppercase tracking-widest text-text-tertiary">
             2019 cohort

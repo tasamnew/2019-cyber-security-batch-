@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LogoLockup } from '@/components/logo';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { ResetPasswordForm } from '../auth/reset-password-form';
@@ -11,8 +12,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2 font-mono text-lg font-bold">
-          <span className="text-accent-green">&gt;_</span>
-          <span className="text-text-primary">CS Hub</span>
+          <LogoLockup siteName="CS Hub" />
         </Link>
 
         <div className="card">
