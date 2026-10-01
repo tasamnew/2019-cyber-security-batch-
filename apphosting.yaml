@@ -1,0 +1,63 @@
+# Firebase App Hosting configuration for the 2019 Cyber Security cohort hub.
+# Docs: https://firebase.google.com/docs/app-hosting/configure
+#
+# Create the referenced secrets ONCE with the Firebase CLI (values are never
+# stored in this file):
+#
+#   firebase apphosting:secrets:set DATABASE_URL        # Neon pooled connection string
+#   firebase apphosting:secrets:set AUTH_SECRET         # 48-byte base64url random
+#   firebase apphosting:secrets:set SUPERADMIN_PASSWORD # initial owner password
+#
+# Then grant the backend access (the CLI prompts automatically on `secrets:set`;
+# otherwise):  firebase apphosting:secrets:grantaccess DATABASE_URL --backend <id>
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+
+env:
+  - variable: NODE_ENV
+    value: production
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Public origin used for absolute links (password resets, etc.). Set this to
+  # the backend's own domain (shown after `firebase init apphosting`), e.g.
+  # https://<backend>--cyber-security-batch.<region>.hosted.app
+  - variable: APP_URL
+    value: https://cyber-security-batch.web.app
+    availability:
+      - RUNTIME
+
+  - variable: MAX_UPLOAD_MB
+    value: "25"
+    availability:
+      - RUNTIME
+
+  # Owner account promoted to ADMIN/APPROVED on every boot.
+  - variable: SUPERADMIN_EMAIL
+    value: tasamnew1@gmail.com
+    availability:
+      - RUNTIME
+
+  # Neon Postgres. Use the POOLED connection string (host contains "-pooler").
+  - variable: DATABASE_URL
+    secret: DATABASE_URL
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: AUTH_SECRET
+    secret: AUTH_SECRET
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: SUPERADMIN_PASSWORD
+    secret: SUPERADMIN_PASSWORD
+    availability:
+      - RUNTIME

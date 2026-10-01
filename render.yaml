@@ -1,0 +1,44 @@
+# Render Blueprint — one-click deploy of the CS 2019 Hub.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Free plan: no credit card. Notes:
+#   - Free web services sleep after ~15 min idle and cold-start on the next hit.
+#   - Free services have no persistent disk, so uploaded files are ephemeral.
+#     Use Cloud Storage or attach a disk (paid) if uploads must persist.
+#   - The database is external (Neon, free) — see README for setup.
+
+services:
+  - type: web
+    name: cs-hub
+    runtime: node
+    plan: free
+    branch: main
+    # prisma generate runs from postinstall; db:deploy applies committed
+    # migrations to DATABASE_URL. Dev deps are required for the build toolchain.
+    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy
+    startCommand: node server.mjs
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: NODE_ENV
+        value: production
+      - key: MAX_UPLOAD_MB
+        value: "25"
+      # Owner promoted to ADMIN/APPROVED on every boot.
+      - key: SUPERADMIN_EMAIL
+        value: tasamnew1@gmail.com
+      # Neon DIRECT (non-pooled) connection string. IMPORTANT: delete the
+      # trailing `&channel_binding=require` — Prisma's query engine hangs on it.
+      # Keep `?sslmode=require`. Example:
+      #   postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # Auto-generated 64-char secret; signs session JWTs and keys flag hashes.
+      - key: AUTH_SECRET
+        generateValue: true
+      # Used only to create the super-admin if it does not exist yet.
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      # APP_URL is optional: the app falls back to Render's public URL.

@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Core palette */
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #0b1225;
+  --color-bg-tertiary: #0f1a33;
+  --color-surface: #0f1830;
+  --color-surface-raised: #111b3a;
+
+  /* Cybersecurity accents (matrix/terminal) */
+  --color-accent-green: #3df5a3;
+  --color-accent-cyan: #3dd6ff;
+  --color-accent-teal: #34d1b2;
+  --color-accent-amber: #f5b301;
+  --color-accent-rose: #ff4d67;
+
+  /* Text */
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary: #64748b;
+
+  /* Borders */
+  --color-border: rgba(51, 65, 85, 0.5);
+  --color-border-strong: rgba(100, 116, 139, 0.6);
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: radial-gradient(1200px 800px at 50% 0%, var(--color-bg-tertiary), var(--color-bg-primary));
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer base {
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent-green) 40%, transparent);
+    color: var(--color-bg-primary);
+  }
+
+  a {
+    color: var(--color-accent-cyan);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  }
+}
+
+@layer components {
+  /* Tailwind v4 cannot @apply a custom class, so the shared button shape is
+     declared once in a selector group and each variant layers on its colours. */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    --tw-ring-offset-color: var(--color-bg-primary);
+  }
+
+  .btn-primary {
+    @apply bg-[var(--color-accent-green)] text-[var(--color-bg-primary)] hover:brightness-95 focus-visible:ring-[var(--color-accent-green)];
+  }
+
+  .btn-secondary {
+    @apply border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-raised)] focus-visible:ring-[var(--color-accent-cyan)];
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-[var(--color-text-secondary)] hover:bg-white/5 hover:text-[var(--color-text-primary)] focus-visible:ring-[var(--color-accent-cyan)];
+  }
+
+  .btn-danger {
+    @apply bg-[var(--color-accent-rose)] text-white hover:brightness-95 focus-visible:ring-[var(--color-accent-rose)];
+  }
+
+  .card {
+    @apply rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-6 shadow-xl shadow-slate-950/40 backdrop-blur-sm;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/80 px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] outline-none transition focus:border-[var(--color-accent-cyan)] focus:ring-2 focus:ring-[var(--color-accent-cyan)]/30;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-[var(--color-text-secondary)];
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-white/5 px-2.5 py-0.5 text-xs font-medium text-[var(--color-text-secondary)];
+  }
+
+  .link {
+    @apply text-[var(--color-accent-cyan)] hover:underline;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+  }
+}
