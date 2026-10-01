@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetch } from '@/hooks/use-socket';
 import { Avatar, RoleBadge, Spinner, Tag, EmptyState } from '@/components/ui';
@@ -52,11 +52,40 @@ export function ResourcesClient({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
-  const [mode, setMode] = useState<'LINK' | 'FILE'>('LINK');
+  // File upload is the default: sharing a document from your machine is the
+  // common case, and the URL field is the rarer one.
+  const [mode, setMode] = useState<'LINK' | 'FILE'>('FILE');
   const [url, setUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const maxBytes = maxUploadMb * 1024 * 1024;
+
+  // Accept list is shared by the picker and the drop zone so both reject the
+  // same types before anything reaches the network.
+  const ACCEPT =
+    '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.tar,.gz,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif';
+
+  /** Validate and stage a picked/dropped file. */
+  function pickFile(candidate: File | null | undefined) {
+    if (!candidate) return;
+    if (candidate.size === 0) {
+      push('That file is empty.', 'error');
+      return;
+    }
+    if (candidate.size > maxBytes) {
+      push(`"${candidate.name}" is ${formatBytes(candidate.size)}. Limit is ${maxUploadMb} MB.`, 'error');
+      return;
+    }
+    setFile(candidate);
+    // Keep the title in sync only while the user has not typed their own.
+    setTitle((prev) => prev || candidate.name);
+    if (mode !== 'FILE') setMode('FILE');
+  }
 
   const search = useCallback(async () => {
     setLoading(true);
@@ -91,9 +120,8 @@ export function ResourcesClient({
       const form = new FormData();
       form.append('file', file);
 
-      const res = await fetch('/api/files/upload', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message ?? 'Upload failed.');
+      // XHR rather than fetch: it is the only way to get real upload progress.
+      const data = await uploadWithProgress(form, setProgress);
 
       // Immediately publish as a resource so the file is discoverable.
       const created = await apiFetch<{ resource: Resource }>('/api/resources', {
@@ -115,6 +143,7 @@ export function ResourcesClient({
     } finally {
       setUploading(false);
       setBusy(false);
+      setProgress(0);
     }
   }
 
@@ -222,8 +251,16 @@ export function ResourcesClient({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (mode === 'FILE') void upload();
-            else void shareLink();
+            // The file input is visually hidden, so `required` cannot guard it.
+            if (mode === 'FILE') {
+              if (!file) {
+                push('Choose a file first.', 'error');
+                return;
+              }
+              void upload();
+            } else {
+              void shareLink();
+            }
           }}
           className="card space-y-4"
         >
@@ -263,20 +300,90 @@ export function ResourcesClient({
             </div>
           ) : (
             <div>
-              <label htmlFor="res-file" className="label">
-                File
-              </label>
-              <input
-                id="res-file"
-                type="file"
-                required
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="input file:mr-3 file:rounded file:border-0 file:bg-accent-green file:px-3 file:py-1 file:text-slate-950"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.tar,.gz,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif"
-              />
-              <p className="mt-1 text-xs text-text-tertiary">
-                PDF, Office docs, archives, text, CSV and images. Max {maxUploadMb} MB.
-              </p>
+              <span className="label">File</span>
+
+              {/* Drop zone doubles as the visible affordance for the hidden input. */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  pickFile(e.dataTransfer.files?.[0]);
+                }}
+                className={cn(
+                  'rounded-lg border-2 border-dashed px-4 py-8 text-center transition',
+                  dragOver
+                    ? 'border-accent-green bg-accent-green/5'
+                    : 'border-border hover:border-accent-green/50',
+                )}
+              >
+                <input
+                  ref={fileInputRef}
+                  id="res-file"
+                  type="file"
+                  className="sr-only"
+                  accept={ACCEPT}
+                  onChange={(e) => {
+                    pickFile(e.target.files?.[0]);
+                    // Reset so re-picking the same file still fires onChange.
+                    e.target.value = '';
+                  }}
+                />
+
+                {file ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-accent-green">⬢</span>
+                    <div className="min-w-0 text-left">
+                      <p className="truncate text-sm font-medium text-text-primary">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-text-tertiary">{formatBytes(file.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFile(null);
+                        setProgress(0);
+                      }}
+                      className="ml-2 text-xs text-text-tertiary hover:text-accent-rose"
+                    >
+                      remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-text-secondary">
+                      Drag a file here, or{' '}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="font-medium text-accent-green underline underline-offset-2"
+                      >
+                        choose from your computer
+                      </button>
+                    </p>
+                    <p className="mt-1.5 text-xs text-text-tertiary">
+                      PDF, Office docs, archives, text, CSV and images. Max {maxUploadMb} MB.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {uploading && (
+                <div className="mt-3">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full bg-accent-green transition-[width] duration-150"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-text-tertiary">Uploading… {progress}%</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -426,6 +533,49 @@ function ModeTab({
       {label}
     </button>
   );
+}
+
+/**
+ * POST multipart form data while reporting byte progress.
+ *
+ * `fetch` has no upload progress event, so XHR is used for this one request.
+ * Resolves the parsed JSON body; rejects with the API's error message.
+ */
+function uploadWithProgress(
+  form: FormData,
+  onProgress: (percent: number) => void,
+): Promise<{ file: { id: string } }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/files/upload');
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      let body: { file?: { id: string }; error?: { message?: string } } = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        reject(new Error('Upload failed: server returned an unreadable response.'));
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body.file) {
+        onProgress(100);
+        resolve({ file: body.file });
+      } else {
+        reject(new Error(body.error?.message ?? `Upload failed (HTTP ${xhr.status}).`));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload cancelled.')));
+
+    xhr.send(form);
+  });
 }
 
 function parseTags(input: string): string[] {
