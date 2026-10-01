@@ -5,6 +5,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// `prisma generate` validates this block, so it must be able to resolve the
+// variable even on a build machine where no database is reachable. The
+// placeholder below is never used to connect — it exists purely so client
+// generation succeeds; runtime and `migrate deploy` use the real DATABASE_URL.
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")

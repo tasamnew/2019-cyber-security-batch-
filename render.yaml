@@ -13,9 +13,10 @@ services:
     runtime: node
     plan: free
     branch: main
-    # prisma generate runs from postinstall; db:deploy applies committed
-    # migrations to DATABASE_URL. Dev deps are required for the build toolchain.
-    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy
+    # prisma generate runs from postinstall (tolerates a missing DATABASE_URL so
+    # client generation cannot fail). Dev deps are needed for the build
+    # toolchain. require-env fails fast with instructions if a secret is absent.
+    buildCommand: npm ci --include=dev && node scripts/require-env.mjs DATABASE_URL && npm run build && npm run db:deploy
     startCommand: node server.mjs
     healthCheckPath: /login
     autoDeploy: true
