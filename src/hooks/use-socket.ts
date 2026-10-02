@@ -148,9 +148,15 @@ export async function apiFetch<T>(
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const message =
-      data?.error?.message ?? `Request failed (${res.status}). Please try again.`;
-    throw new Error(message);
+    const fields = (data?.error?.fields ?? {}) as Record<string, string>;
+    const base = data?.error?.message ?? `Request failed (${res.status}). Please try again.`;
+    // Name the offending fields: forms that render no inline errors otherwise
+    // just show a generic "check the highlighted fields".
+    const names = Object.keys(fields);
+    const detail = names.length
+      ? ` (${names.map((n) => `${n}: ${fields[n]}`).join('; ')})`
+      : '';
+    throw new Error(`${base}${detail}`);
   }
 
   return data as T;

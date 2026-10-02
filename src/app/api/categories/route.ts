@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requirePermission } from '@/lib/guards';
 import { categorySchema } from '@/lib/validation';
+import { slugify } from '@/lib/utils';
 import { audit } from '@/lib/audit';
 
 /** GET /api/categories — list forum categories with published post counts. */
@@ -33,10 +34,13 @@ export const POST = handler(async (req: Request) => {
   });
   const input = categorySchema.parse(body);
 
-  const existing = await db.category.findUnique({ where: { slug: input.slug } });
+  // Derive the slug when the client only supplied a display name.
+  const slug = input.slug ?? slugify(input.name);
+
+  const existing = await db.category.findUnique({ where: { slug } });
   if (existing) throw ApiError.conflict('A category with that slug already exists.');
 
-  const category = await db.category.create({ data: input });
+  const category = await db.category.create({ data: { ...input, slug } });
 
   await audit({
     actorId: actor.id,

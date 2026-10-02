@@ -38,6 +38,15 @@ export const slugSchema = z
   .max(80)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and hyphens only.');
 
+/**
+ * Slug a caller may omit: forms send nothing, and an empty string is treated as
+ * absent so the route can derive one from the display name.
+ */
+export const optionalSlugSchema = z
+  .union([slugSchema, z.literal('')])
+  .optional()
+  .transform((v) => v || undefined);
+
 /** Markdown body. Length capped to keep posts readable and DB rows small. */
 export const markdownSchema = clean(20_000);
 
@@ -111,12 +120,20 @@ export const updateProfileSchema = z.object({
 
 export const categorySchema = z.object({
   name: clean(60).pipe(z.string().min(2)),
-  slug: slugSchema,
+  slug: optionalSlugSchema,
   description: clean(300).optional(),
   color: hexColorSchema.default('#3dd6ff'),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
-export const categoryUpdateSchema = categorySchema.partial();
+// Declared field by field rather than `categorySchema.partial()`: `.partial()`
+// keeps `.default()`, so a partial edit would silently reset colour and order.
+export const categoryUpdateSchema = z.object({
+  name: categorySchema.shape.name.optional(),
+  slug: optionalSlugSchema,
+  description: clean(300).optional(),
+  color: hexColorSchema.optional(),
+  sortOrder: z.coerce.number().int().min(0).max(999).optional(),
+});
 
 export const postCreateSchema = z.object({
   title: clean(160).pipe(z.string().min(8, 'Give the post a more descriptive title.')),
@@ -158,12 +175,19 @@ export const postListQuerySchema = paginationSchema.extend({
 
 export const channelCreateSchema = z.object({
   name: clean(40).pipe(z.string().min(2)),
-  slug: slugSchema,
+  slug: optionalSlugSchema,
   topic: clean(200).optional(),
   kind: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
 });
 
-export const channelUpdateSchema = channelCreateSchema.partial();
+// Same reasoning as `categoryUpdateSchema`: `.partial()` would keep
+// `kind`'s default and flip a private channel back to public on any edit.
+export const channelUpdateSchema = z.object({
+  name: channelCreateSchema.shape.name.optional(),
+  slug: optionalSlugSchema,
+  topic: clean(200).optional(),
+  kind: z.enum(['PUBLIC', 'PRIVATE']).optional(),
+});
 
 export const messageCreateSchema = z.object({
   body: clean(4000).pipe(z.string().min(1, 'Message cannot be empty.')),
