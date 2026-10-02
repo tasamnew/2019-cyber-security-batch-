@@ -41,10 +41,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         avatarSeed: user.avatarSeed,
       }}
     >
-      <div className="flex min-h-screen w-full overflow-x-hidden">
+      <div className="flex min-h-screen w-full min-w-0 flex-1 flex-row overflow-x-hidden">
         <Sidebar siteName={settings.siteName} />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 w-full flex-1 flex-col">
           {/* Desktop top bar with announcements + user menu */}
           <header className="sticky top-0 z-30 hidden items-center justify-end gap-3 border-b border-border bg-bg-primary/80 px-6 py-3 backdrop-blur lg:flex">
             {settings.maintenanceMode && (

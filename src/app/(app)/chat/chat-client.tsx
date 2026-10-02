@@ -493,7 +493,7 @@ export function ChatClient({
     .map(([id]) => currentUser.id === id ? '' : 'someone');
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
+    <div className="grid min-w-0 w-full grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
       {/* Sidebar */}
       <aside className="card flex max-h-[38rem] flex-col overflow-hidden p-0 lg:max-h-[calc(100vh-14rem)]">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
