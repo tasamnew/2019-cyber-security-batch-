@@ -14,6 +14,8 @@ export const GET = handler(
     const params = new URL(req.url).searchParams;
     const before = params.get('before');
     const limit = Math.min(Number(params.get('limit')) || 50, 100);
+    // Capped so a pasted wall of text cannot turn into an unbounded scan.
+    const q = (params.get('q') ?? '').trim().slice(0, 100);
 
     const conversation = await db.conversation.findUnique({
       where: { id },
@@ -35,6 +37,16 @@ export const GET = handler(
     const where: Prisma.MessageWhereInput = {
       conversationId: id,
       ...(before ? { id: { lt: before } } : {}),
+      // Matches the caption and the attached file name, so "invoice" finds a
+      // message that only ever said "see attached".
+      ...(q
+        ? {
+            OR: [
+              { body: { contains: q, mode: 'insensitive' } },
+              { attachment: { is: { originalName: { contains: q, mode: 'insensitive' } } } },
+            ],
+          }
+        : {}),
     };
 
     const rows = await db.message.findMany({
@@ -47,6 +59,7 @@ export const GET = handler(
     return ok({
       messages: rows.reverse().map(toChatPayload),
       hasMore: rows.length === limit,
+      query: q || null,
       participant: conversation.senderId === actor.id ? conversation.recipient : conversation.sender,
     });
   },

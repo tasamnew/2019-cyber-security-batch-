@@ -259,14 +259,18 @@ model Channel {
   name        String
   topic       String?
   kind        ChannelKind @default(PUBLIC)
+  // Admin-controlled: a pinned channel floats to the top of every sidebar.
+  pinned      Boolean     @default(false)
+  pinnedAt    DateTime?
   createdById String
   createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdAt   DateTime    @default(now())
-
+  
   members  ChannelMember[]
   messages Message[]
-
+  
   @@index([kind])
+  @@index([pinned])
 }
 
 model ChannelMember {

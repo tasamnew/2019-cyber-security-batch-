@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember, requirePermission } from '@/lib/guards';
 import { channelUpdateSchema } from '@/lib/validation';
+import { can } from '@/lib/rbac';
 import { audit } from '@/lib/audit';
 
 /**
@@ -60,7 +61,12 @@ export const PATCH = handler(
     const body = await req.json().catch(() => {
       throw ApiError.badRequest('Send a JSON body.');
     });
-    const input = channelUpdateSchema.parse(body);
+
+    // Pinning is admin-only while the rest of this body is moderator-level, so
+    // it is split out and gated on its own instead of living in
+    // `channelUpdateSchema` where a moderator could set it by accident.
+    const { pinned, ...rest } = body as { pinned?: unknown };
+    const input = channelUpdateSchema.parse(rest);
 
     if (input.slug) {
       const clash = await db.channel.findUnique({ where: { slug: input.slug } });
@@ -69,14 +75,34 @@ export const PATCH = handler(
       }
     }
 
-    const channel = await db.channel.update({ where: { id }, data: input });
+    let pinChange: boolean | undefined;
+    if (pinned !== undefined) {
+      if (typeof pinned !== 'boolean') {
+        throw ApiError.badRequest('pinned must be true or false.');
+      }
+      if (!can(actor.role, 'channel:pin')) {
+        throw ApiError.forbidden('Only an admin can pin a channel.');
+      }
+      pinChange = pinned;
+    }
+
+    const channel = await db.channel.update({
+      where: { id },
+      data: {
+        ...input,
+        // stamped on pin and cleared on unpin so "pinned since" stays honest
+        ...(pinChange === undefined
+          ? {}
+          : { pinned: pinChange, pinnedAt: pinChange ? new Date() : null }),
+      },
+    });
 
     await audit({
       actorId: actor.id,
-      action: 'channel.update',
+      action: pinChange === undefined ? 'channel.update' : 'channel.pin',
       entityType: 'Channel',
       entityId: id,
-      metadata: input,
+      metadata: pinChange === undefined ? input : { ...input, pinned: pinChange },
     });
 
     return ok({ channel });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSocket, useSocketEvent, emitWithAck, apiFetch } from '@/hooks/use-socket';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, RoleBadge, Spinner, EmptyState } from '@/components/ui';
@@ -16,6 +16,7 @@ interface Channel {
   name: string;
   topic: string | null;
   kind: 'PUBLIC' | 'PRIVATE';
+  pinned: boolean;
   joined: boolean;
   messageCount: number;
 }
@@ -47,6 +48,7 @@ export function ChatClient({
   conversations,
   members,
   canCreateChannels,
+  canPinChannels,
   maxUploadMb,
 }: {
   currentUser: { id: string; name: string; role: string; avatarSeed: string };
@@ -54,6 +56,7 @@ export function ChatClient({
   conversations: Conversation[];
   members: Member[];
   canCreateChannels: boolean;
+  canPinChannels: boolean;
   maxUploadMb: number;
 }) {
   const { socket, connected, error: socketError } = useSocket(true);
@@ -69,6 +72,29 @@ export function ChatClient({
   const [dmSearch, setDmSearch] = useState('');
   const [convoList, setConvoList] = useState(conversations);
   const [connected_] = [connected];
+
+  // Local copy so a pin toggle can re-sort without a refetch.
+  const [channelList, setChannelList] = useState(channels);
+  const [pinningId, setPinningId] = useState<string | null>(null);
+
+  // Search results are tagged with the view and term that produced them, so a
+  // slow response for one channel can never flash up in another.
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState<{
+    viewId: string;
+    term: string;
+    rows: ChatMessagePayload[];
+  } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Pinned channels get their own group; the rest stay alphabetical.
+  const { pinnedChannels, otherChannels } = useMemo(() => {
+    const byName = (a: Channel, b: Channel) => a.slug.localeCompare(b.slug);
+    return {
+      pinnedChannels: channelList.filter((c) => c.pinned).sort(byName),
+      otherChannels: channelList.filter((c) => !c.pinned).sort(byName),
+    };
+  }, [channelList]);
 
   // Staged attachment, uploaded to /api/files/upload on send.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -133,6 +159,50 @@ export function ChatClient({
       }
     };
   }, [view, socket, connected_, push]);
+
+  // Message search. Kept apart from the history fetch above so an empty box
+  // never costs a second round trip, and debounced like the resources search.
+  useEffect(() => {
+    const term = query.trim();
+    if (!view || !term) {
+      setSearch(null);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearching(true);
+
+    const timer = setTimeout(() => {
+      const url =
+        view.kind === 'channel'
+          ? `/api/channels/${view.id}/messages?q=${encodeURIComponent(term)}`
+          : `/api/conversations/${view.id}/messages?q=${encodeURIComponent(term)}`;
+
+      fetch(url, { signal: controller.signal })
+        .then(async (res) => {
+          if (!res.ok) throw new Error('Search failed.');
+          return (await res.json()) as { messages?: ChatMessagePayload[] };
+        })
+        .then((data) => setSearch({ viewId: view.id, term, rows: data.messages ?? [] }))
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          push('Search failed.', 'error');
+        })
+        .finally(() => setSearching(false));
+    }, 300);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [view, query, push]);
+
+  // Results render only when they belong to the current view and term.
+  const searchTerm = query.trim();
+  const showingResults =
+    search !== null && search.viewId === view?.id && search.term === searchTerm;
+  const visibleMessages = showingResults ? search.rows : messages;
 
   // Scroll to the newest message.
   useEffect(() => {
@@ -216,6 +286,25 @@ export function ChatClient({
       return;
     }
     setPendingFile(candidate);
+  }
+
+  /** Admin-only; the server re-checks, this just keeps the UI responsive. */
+  async function togglePin(channel: Channel) {
+    if (pinningId) return;
+    const next = !channel.pinned;
+    setPinningId(channel.id);
+    try {
+      await apiFetch(`/api/channels/${channel.id}`, {
+        method: 'PATCH',
+        json: { pinned: next },
+      });
+      setChannelList((prev) => prev.map((c) => (c.id === channel.id ? { ...c, pinned: next } : c)));
+      push(next ? `#${channel.name} pinned.` : `#${channel.name} unpinned.`, 'success');
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Could not update the channel.', 'error');
+    } finally {
+      setPinningId(null);
+    }
   }
 
   async function send(e: React.FormEvent) {
@@ -354,25 +443,40 @@ export function ChatClient({
         </div>
 
         <ul className="scrollbar-thin flex-1 overflow-y-auto p-2">
-          {channels.map((channel) => (
+          {pinnedChannels.length > 0 && (
+            <li className="px-3 pb-1 pt-2 text-[0.6rem] font-semibold uppercase tracking-wide text-text-tertiary">
+              Pinned
+            </li>
+          )}
+          {pinnedChannels.map((channel) => (
             <li key={channel.id}>
-              <button
-                onClick={() =>
+              <ChannelButton
+                channel={channel}
+                active={view?.kind === 'channel' && view.id === channel.id}
+                icon="📌"
+                onSelect={() =>
                   setView({ kind: 'channel', id: channel.id, name: channel.name, topic: channel.topic })
                 }
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
-                  view?.kind === 'channel' && view.id === channel.id
-                    ? 'bg-accent-green/10 text-accent-green'
-                    : 'text-text-secondary hover:bg-black/5',
-                )}
-              >
-                <span aria-hidden className="text-xs">
-                  #
-                </span>
-                <span className="min-w-0 flex-1 truncate">{channel.name}</span>
-                {channel.kind === 'PRIVATE' && <span className="text-[0.6rem]">🔒</span>}
-              </button>
+              />
+            </li>
+          ))}
+
+          {pinnedChannels.length > 0 && otherChannels.length > 0 && (
+            <li className="px-3 pb-1 pt-3 text-[0.6rem] font-semibold uppercase tracking-wide text-text-tertiary">
+              Channels
+            </li>
+          )}
+
+          {otherChannels.map((channel) => (
+            <li key={channel.id}>
+              <ChannelButton
+                channel={channel}
+                active={view?.kind === 'channel' && view.id === channel.id}
+                icon="#"
+                onSelect={() =>
+                  setView({ kind: 'channel', id: channel.id, name: channel.name, topic: channel.topic })
+                }
+              />
             </li>
           ))}
         </ul>
@@ -467,7 +571,7 @@ export function ChatClient({
           </div>
         ) : (
           <>
-            <header className="flex items-center justify-between border-b border-border px-5 py-3">
+            <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
               <div className="min-w-0">
                 <h2 className="truncate font-semibold text-text-primary">
                   {view.kind === 'channel' ? `# ${view.name}` : view.name}
@@ -476,13 +580,74 @@ export function ChatClient({
                   <p className="truncate text-xs text-text-tertiary">{view.topic}</p>
                 )}
               </div>
+              {canPinChannels && view.kind === 'channel' && (
+                <ChannelPinButton
+                  channel={channelList.find((c) => c.id === view.id)}
+                  busy={pinningId === view.id}
+                  onToggle={togglePin}
+                />
+              )}
             </header>
+
+            <div className="border-b border-border px-5 py-2">
+              <div className="relative">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  maxLength={100}
+                  placeholder={`Search in ${view.kind === 'channel' ? `#${view.name}` : view.name}`}
+                  aria-label="Search messages in this conversation"
+                  className="input py-1.5 pr-8 text-xs"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 text-xs text-text-tertiary hover:text-text-primary"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {searchTerm && (
+                <p className="mt-1 text-[0.65rem] text-text-tertiary">
+                  {searching
+                    ? 'Searching…'
+                    : `${visibleMessages.length} result${
+                        visibleMessages.length === 1 ? '' : 's'
+                      } for “${searchTerm}”`}
+                </p>
+              )}
+            </div>
 
             <div ref={scrollRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto p-5">
               {loading ? (
                 <div className="flex justify-center py-8">
                   <Spinner className="text-accent-green" />
                 </div>
+              ) : searchTerm ? (
+                searching ? (
+                  <div className="flex justify-center py-8">
+                    <Spinner className="text-accent-green" />
+                  </div>
+                ) : visibleMessages.length === 0 ? (
+                  <EmptyState
+                    icon="⌕"
+                    title="No matches"
+                    description={`Nothing here matches “${searchTerm}”.`}
+                  />
+                ) : (
+                  visibleMessages.map((message) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      mine={message.sender.id === currentUser.id}
+                      canDelete={message.sender.id === currentUser.id || isModerator}
+                      onDelete={() => removeMessage(message)}
+                    />
+                  ))
+                )
               ) : messages.length === 0 ? (
                 <EmptyState
                   icon="◈"
@@ -490,55 +655,15 @@ export function ChatClient({
                   description="Say hello and get the conversation started."
                 />
               ) : (
-                messages.map((message) => {
-                  const mine = message.sender.id === currentUser.id;
-                  const canDelete = mine || isModerator;
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn('group flex gap-3', mine && 'flex-row-reverse')}
-                    >
-                      <Avatar name={message.sender.name} seed={message.sender.id} size="sm" />
-                      <div className={cn('min-w-0 max-w-[80%]', mine && 'text-right')}>
-                        <p className="mb-0.5 flex items-center gap-2 text-xs text-text-tertiary">
-                          <span className="text-text-secondary">{message.sender.name}</span>
-                          <RoleBadge role={message.sender.role} />
-                          <time dateTime={message.createdAt}>{timeAgo(message.createdAt)}</time>
-                          {canDelete && (
-                            <button
-                              type="button"
-                              onClick={() => removeMessage(message)}
-                              title="Delete message"
-                              aria-label={`Delete message from ${message.sender.name}`}
-                              className="rounded px-1 text-xs text-text-tertiary opacity-0 transition hover:text-accent-rose focus-visible:opacity-100 group-hover:opacity-100"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </p>
-                        {message.attachment && (
-                          <Attachment attachment={message.attachment} mine={mine} />
-                        )}
-                        {message.body && (
-                          <div
-                            className={cn(
-                              'inline-block whitespace-pre-wrap break-words rounded-xl px-4 py-2 text-left text-sm',
-                              message.attachment ? 'mt-1.5' : '',
-                              mine
-                                ? 'bg-accent-green/10 text-text-primary'
-                                : 'bg-bg-secondary text-text-primary',
-                            )}
-                          >
-                            {message.body}
-                          </div>
-                        )}
-                        {message.editedAt && (
-                          <p className="mt-0.5 text-[0.65rem] text-text-tertiary">(edited)</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
+                messages.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    mine={message.sender.id === currentUser.id}
+                    canDelete={message.sender.id === currentUser.id || isModerator}
+                    onDelete={() => removeMessage(message)}
+                  />
+                ))
               )}
 
               {typingNames.length > 0 && (
@@ -686,6 +811,118 @@ function Attachment({ attachment, mine }: { attachment: ChatAttachment; mine: bo
           </span>
         </span>
       </a>
+    </div>
+  );
+}
+
+/** One row in the sidebar, shared by the pinned and unpinned groups. */
+function ChannelButton({
+  channel,
+  active,
+  icon,
+  onSelect,
+}: {
+  channel: Channel;
+  active: boolean;
+  icon: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      aria-current={active ? 'true' : undefined}
+      className={cn(
+        'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
+        active ? 'bg-accent-green/10 text-accent-green' : 'text-text-secondary hover:bg-black/5',
+      )}
+    >
+      <span aria-hidden className="text-xs">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{channel.name}</span>
+      {channel.kind === 'PRIVATE' && <span className="text-[0.6rem]">🔒</span>}
+    </button>
+  );
+}
+
+/** Admin-only pin toggle. Hidden entirely for anyone who cannot use it. */
+function ChannelPinButton({
+  channel,
+  busy,
+  onToggle,
+}: {
+  channel: Channel | undefined;
+  busy: boolean;
+  onToggle: (channel: Channel) => void;
+}) {
+  if (!channel) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(channel)}
+      disabled={busy}
+      aria-pressed={channel.pinned}
+      title={channel.pinned ? 'Unpin this channel' : 'Pin this channel for everyone'}
+      className={cn(
+        'shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition disabled:opacity-40',
+        channel.pinned
+          ? 'border-accent-green/50 bg-accent-green/10 text-accent-green'
+          : 'border-border text-text-tertiary hover:border-accent-green/40 hover:text-text-secondary',
+      )}
+    >
+      📌
+    </button>
+  );
+}
+
+/** One message bubble, used by both the live list and search results. */
+function MessageBubble({
+  message,
+  mine,
+  canDelete,
+  onDelete,
+}: {
+  message: ChatMessagePayload;
+  mine: boolean;
+  canDelete: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <div className={cn('group flex gap-3', mine && 'flex-row-reverse')}>
+      <Avatar name={message.sender.name} seed={message.sender.id} size="sm" />
+      <div className={cn('min-w-0 max-w-[80%]', mine && 'text-right')}>
+        <p className="mb-0.5 flex items-center gap-2 text-xs text-text-tertiary">
+          <span className="text-text-secondary">{message.sender.name}</span>
+          <RoleBadge role={message.sender.role} />
+          <time dateTime={message.createdAt}>{timeAgo(message.createdAt)}</time>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Delete message"
+              aria-label={`Delete message from ${message.sender.name}`}
+              className="rounded px-1 text-xs text-text-tertiary opacity-0 transition hover:text-accent-rose focus-visible:opacity-100 group-hover:opacity-100"
+            >
+              ✕
+            </button>
+          )}
+        </p>
+        {message.attachment && <Attachment attachment={message.attachment} mine={mine} />}
+        {message.body && (
+          <div
+            className={cn(
+              'inline-block whitespace-pre-wrap break-words rounded-xl px-4 py-2 text-left text-sm',
+              message.attachment ? 'mt-1.5' : '',
+              mine ? 'bg-accent-green/10 text-text-primary' : 'bg-bg-secondary text-text-primary',
+            )}
+          >
+            {message.body}
+          </div>
+        )}
+        {message.editedAt && (
+          <p className="mt-0.5 text-[0.65rem] text-text-tertiary">(edited)</p>
+        )}
+      </div>
     </div>
   );
 }

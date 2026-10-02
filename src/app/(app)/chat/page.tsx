@@ -14,6 +14,8 @@ export default async function ChatPage() {
   const [channels, conversations, members, settings] = await Promise.all([
     db.channel.findMany({
       where: { OR: [{ kind: 'PUBLIC' }, { members: { some: { userId: user.id } } }] },
+      // Ordering is applied client-side so a pin toggle can re-sort without a
+      // refetch; `pinned` is what it sorts on.
       orderBy: { slug: 'asc' },
       include: {
         _count: { select: { messages: true } },
@@ -63,6 +65,7 @@ export default async function ChatPage() {
           name: c.name,
           topic: c.topic,
           kind: c.kind,
+          pinned: c.pinned,
           joined: c.members.length > 0,
           messageCount: c._count.messages,
         }))}
@@ -84,6 +87,7 @@ export default async function ChatPage() {
         }))}
         members={members}
         canCreateChannels={isModerator}
+        canPinChannels={user.role === 'ADMIN'}
         maxUploadMb={settings.maxUploadMb}
       />
     </div>

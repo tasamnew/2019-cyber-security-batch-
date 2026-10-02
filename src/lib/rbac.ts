@@ -32,6 +32,7 @@ export type Permission =
   | 'comment:delete:any'
   | 'channel:create'
   | 'channel:manage'
+  | 'channel:pin'
   | 'message:delete:own'
   | 'message:delete:any'
   | 'resource:upload'
@@ -88,6 +89,7 @@ const PERMISSIONS: Record<Permission, Role> = {
   'user:view': 'MODERATOR',
 
   // Admin-only.
+  'channel:pin': 'ADMIN',
   'assignment:update:any': 'ADMIN',
   'assignment:delete:any': 'ADMIN',
   'announcement:create': 'ADMIN',

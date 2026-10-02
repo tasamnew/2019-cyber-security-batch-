@@ -19,6 +19,8 @@ export const GET = handler(
     const params = new URL(req.url).searchParams;
     const before = params.get('before'); // cursor: message id
     const limit = Math.min(Number(params.get('limit')) || 50, 100);
+    // Capped so a pasted wall of text cannot turn into an unbounded scan.
+    const q = (params.get('q') ?? '').trim().slice(0, 100);
 
     const channel = await db.channel.findUnique({
       where: { id },
@@ -36,6 +38,16 @@ export const GET = handler(
     const where: Prisma.MessageWhereInput = {
       channelId: id,
       ...(before ? { id: { lt: before } } : {}),
+      // Matches the caption and the attached file name, so "report" finds a
+      // message that only ever said "see attached".
+      ...(q
+        ? {
+            OR: [
+              { body: { contains: q, mode: 'insensitive' } },
+              { attachment: { is: { originalName: { contains: q, mode: 'insensitive' } } } },
+            ],
+          }
+        : {}),
     };
 
     // Newest first for pagination, then reverse for display order.
@@ -49,6 +61,7 @@ export const GET = handler(
     return ok({
       messages: rows.reverse().map(toChatPayload),
       hasMore: rows.length === limit,
+      query: q || null,
       channel: { id: channel.id, name: channel.name, kind: channel.kind },
     });
   },
