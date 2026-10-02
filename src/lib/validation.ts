@@ -189,10 +189,21 @@ export const channelUpdateSchema = z.object({
   kind: z.enum(['PUBLIC', 'PRIVATE']).optional(),
 });
 
-export const messageCreateSchema = z.object({
-  body: clean(4000).pipe(z.string().min(1, 'Message cannot be empty.')),
-  attachmentId: z.string().cuid().nullish(),
-});
+export const messageCreateSchema = z
+  .object({
+    // A file on its own is a complete message, so the caption may be empty.
+    body: clean(4000).default(''),
+    attachmentId: z.string().cuid().nullish(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.body && !v.attachmentId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['body'],
+        message: 'Type a message or attach a file.',
+      });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Resources / files

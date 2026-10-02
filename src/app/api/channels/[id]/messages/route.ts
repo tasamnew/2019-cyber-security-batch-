@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
-import { broadcastToChannel, toChatPayload } from '@/lib/realtime';
+import { broadcastToChannel, messageInclude, toChatPayload } from '@/lib/realtime';
 
 /**
  * GET/POST /api/channels/[id]/messages
@@ -43,11 +43,11 @@ export const GET = handler(
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { sender: { select: { id: true, name: true, role: true, avatarSeed: true } } },
+      include: messageInclude,
     });
 
     return ok({
-      messages: rows.reverse(),
+      messages: rows.reverse().map(toChatPayload),
       hasMore: rows.length === limit,
       channel: { id: channel.id, name: channel.name, kind: channel.kind },
     });
@@ -98,13 +98,15 @@ export const POST = handler(
         attachmentId: input.attachmentId ?? null,
         type: input.attachmentId ? 'FILE' : 'TEXT',
       },
-      include: { sender: { select: { id: true, name: true, role: true, avatarSeed: true } } },
+      include: messageInclude,
     });
+
+    const payload = toChatPayload(message);
 
     // The send path is REST, so the live fanout has to be triggered here or
     // other members would only see the message after a reload.
-    broadcastToChannel(id, toChatPayload(message));
+    broadcastToChannel(id, payload);
 
-    return ok({ message }, 201);
+    return ok({ message: payload }, 201);
   },
 );

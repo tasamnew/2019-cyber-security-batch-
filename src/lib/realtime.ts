@@ -29,6 +29,12 @@ export interface MessageRow {
   createdAt: Date;
   editedAt?: Date | null;
   sender: { id: string; name: string; role: string };
+  attachment?: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+  } | null;
 }
 
 /**
@@ -45,8 +51,29 @@ export function toChatPayload(row: MessageRow): ChatMessagePayload {
     channelId: row.channelId ?? null,
     conversationId: row.conversationId ?? null,
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
+    // Only the fields a bubble needs: sending the stored name or path would let
+    // one member's browser fetch a file another member is not allowed to see.
+    attachment: row.attachment
+      ? {
+          id: row.attachment.id,
+          name: row.attachment.originalName,
+          mimeType: row.attachment.mimeType,
+          sizeBytes: row.attachment.sizeBytes,
+        }
+      : null,
   };
 }
+
+/**
+ * The one query shape used wherever a Message is read or written, so the REST
+ * reply and the socket broadcast can never drift apart.
+ */
+export const messageInclude = {
+  sender: { select: { id: true, name: true, role: true, avatarSeed: true } },
+  attachment: {
+    select: { id: true, originalName: true, mimeType: true, sizeBytes: true },
+  },
+} as const;
 
 export function broadcastToChannel(channelId: string, message: ChatMessagePayload): void {
   io()?.to(`channel:${channelId}`).emit('channel:message', message);

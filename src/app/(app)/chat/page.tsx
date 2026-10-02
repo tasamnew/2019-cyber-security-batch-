@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { getSettings } from '@/lib/settings';
 import { ChatClient } from './chat-client';
 
 export const metadata: Metadata = { title: 'Chat' };
@@ -10,7 +11,7 @@ export default async function ChatPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [channels, conversations, members] = await Promise.all([
+  const [channels, conversations, members, settings] = await Promise.all([
     db.channel.findMany({
       where: { OR: [{ kind: 'PUBLIC' }, { members: { some: { userId: user.id } } }] },
       orderBy: { slug: 'asc' },
@@ -25,7 +26,11 @@ export default async function ChatPage() {
       include: {
         sender: { select: { id: true, name: true, role: true, avatarSeed: true, status: true } },
         recipient: { select: { id: true, name: true, role: true, avatarSeed: true, status: true } },
-        messages: { take: 1, orderBy: { createdAt: 'desc' } },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          include: { attachment: { select: { originalName: true } } },
+        },
       },
     }),
     // Directory for starting a new DM.
@@ -35,6 +40,8 @@ export default async function ChatPage() {
       take: 100,
       select: { id: true, name: true, role: true, avatarSeed: true },
     }),
+    // Chat enforces the same upload ceiling the file route does.
+    getSettings(),
   ]);
 
   const isModerator = user.role === 'ADMIN' || user.role === 'MODERATOR';
@@ -64,7 +71,12 @@ export default async function ChatPage() {
           participant: c.senderId === user.id ? c.recipient : c.sender,
           lastMessage: c.messages[0]
             ? {
-                body: c.messages[0].body,
+                // A file sent with no caption would otherwise preview as blank.
+                body:
+                  c.messages[0].body ||
+                  (c.messages[0].attachment
+                    ? `📎 ${c.messages[0].attachment.originalName}`
+                    : ''),
                 createdAt: c.messages[0].createdAt.toISOString(),
                 mine: c.messages[0].senderId === user.id,
               }
@@ -72,6 +84,7 @@ export default async function ChatPage() {
         }))}
         members={members}
         canCreateChannels={isModerator}
+        maxUploadMb={settings.maxUploadMb}
       />
     </div>
   );

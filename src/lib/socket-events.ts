@@ -56,6 +56,13 @@ export interface SocketData {
 
 export type Ack = (response: { ok: boolean; error?: string; messageId?: string }) => void;
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface ChatMessagePayload {
   id: string;
   body: string;
@@ -65,6 +72,7 @@ export interface ChatMessagePayload {
   channelId?: string | null;
   conversationId?: string | null;
   editedAt?: string | null;
+  attachment?: ChatAttachment | null;
 }
 
 // Room name helpers — both sides must build identical strings.

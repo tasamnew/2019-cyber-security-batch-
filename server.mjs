@@ -104,6 +104,27 @@ const serializer = {
   channelId: (m) => m.channelId ?? null,
   conversationId: (m) => m.conversationId ?? null,
   editedAt: (m) => m.editedAt ?? null,
+  // Mirrors toChatPayload in src/lib/realtime.ts: only the fields a bubble
+  // needs, never the stored path.
+  attachment: (m) =>
+    m.attachment
+      ? {
+          id: m.attachment.id,
+          name: m.attachment.originalName,
+          mimeType: m.attachment.mimeType,
+          sizeBytes: m.attachment.sizeBytes,
+        }
+      : null,
+};
+
+// Socket-side sends select the same shape as the REST route.
+const messageWithAttachment = {
+  include: {
+    sender: { select: { id: true, name: true, role: true } },
+    attachment: {
+      select: { id: true, originalName: true, mimeType: true, sizeBytes: true },
+    },
+  },
 };
 
 io.on('connection', (socket) => {
@@ -156,7 +177,7 @@ io.on('connection', (socket) => {
 
     const message = await prisma.message.create({
       data: { body: text, channelId, senderId: userId, type: 'TEXT' },
-      include: { sender: { select: { id: true, name: true, role: true } } },
+      include: messageWithAttachment,
     });
 
     io.to(`channel:${channelId}`).emit('channel:message', serializer(message));
@@ -210,7 +231,7 @@ io.on('connection', (socket) => {
 
     const message = await prisma.message.create({
       data: { body: text, conversationId, senderId: userId, type: 'TEXT' },
-      include: { sender: { select: { id: true, name: true, role: true } } },
+      include: messageWithAttachment,
     });
 
     io.to(`conversation:${conversationId}`).emit('conversation:message', serializer(message));

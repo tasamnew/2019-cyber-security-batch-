@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
-import { broadcastToConversation, toChatPayload } from '@/lib/realtime';
+import { broadcastToConversation, messageInclude, toChatPayload } from '@/lib/realtime';
 
 /** GET/POST /api/conversations/[id]/messages — DM history + REST send fallback. */
 export const GET = handler(
@@ -41,11 +41,11 @@ export const GET = handler(
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { sender: { select: { id: true, name: true, role: true, avatarSeed: true } } },
+      include: messageInclude,
     });
 
     return ok({
-      messages: rows.reverse(),
+      messages: rows.reverse().map(toChatPayload),
       hasMore: rows.length === limit,
       participant: conversation.senderId === actor.id ? conversation.recipient : conversation.sender,
     });
@@ -71,14 +71,27 @@ export const POST = handler(
     });
     const input = messageCreateSchema.parse(body);
 
+    // Same ownership rule as channels: only the uploader may attach a file.
+    if (input.attachmentId) {
+      const file = await db.fileAsset.findUnique({
+        where: { id: input.attachmentId },
+        select: { uploadedById: true },
+      });
+      if (!file) throw ApiError.badRequest('That attachment does not exist.');
+      if (file.uploadedById !== actor.id && actor.role !== 'ADMIN') {
+        throw ApiError.forbidden('You can only attach files you uploaded.');
+      }
+    }
+
     const message = await db.message.create({
       data: {
         body: input.body,
         conversationId: id,
         senderId: actor.id,
-        type: 'TEXT',
+        attachmentId: input.attachmentId ?? null,
+        type: input.attachmentId ? 'FILE' : 'TEXT',
       },
-      include: { sender: { select: { id: true, name: true, role: true, avatarSeed: true } } },
+      include: messageInclude,
     });
 
     // Bump the thread so it floats to the top of the DM list.
@@ -87,9 +100,11 @@ export const POST = handler(
       data: { updatedAt: new Date() },
     });
 
-    // Sends are REST, so the live fanout is triggered here (see lib/realtime).
-    broadcastToConversation(id, toChatPayload(message));
+    const payload = toChatPayload(message);
 
-    return ok({ message }, 201);
+    // Sends are REST, so the live fanout is triggered here (see lib/realtime).
+    broadcastToConversation(id, payload);
+
+    return ok({ message: payload }, 201);
   },
 );

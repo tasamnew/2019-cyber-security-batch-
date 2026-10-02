@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSocket, useSocketEvent, emitWithAck, apiFetch } from '@/hooks/use-socket';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, RoleBadge, Spinner, EmptyState } from '@/components/ui';
-import { timeAgo, cn } from '@/lib/utils';
+import { timeAgo, cn, formatBytes } from '@/lib/utils';
+import { ACCEPT, uploadWithProgress, validateUploadCandidate } from '@/lib/upload';
 import { roleAtLeast } from '@/lib/rbac';
 import type { Role } from '@prisma/client';
-import type { ChatMessagePayload } from '@/lib/socket-events';
+import type { ChatAttachment, ChatMessagePayload } from '@/lib/socket-events';
 
 interface Channel {
   id: string;
@@ -46,12 +47,14 @@ export function ChatClient({
   conversations,
   members,
   canCreateChannels,
+  maxUploadMb,
 }: {
   currentUser: { id: string; name: string; role: string; avatarSeed: string };
   channels: Channel[];
   conversations: Conversation[];
   members: Member[];
   canCreateChannels: boolean;
+  maxUploadMb: number;
 }) {
   const { socket, connected, error: socketError } = useSocket(true);
   const { push } = useToast();
@@ -66,6 +69,14 @@ export function ChatClient({
   const [dmSearch, setDmSearch] = useState('');
   const [convoList, setConvoList] = useState(conversations);
   const [connected_] = [connected];
+
+  // Staged attachment, uploaded to /api/files/upload on send.
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const maxBytes = maxUploadMb * 1024 * 1024;
 
   // Moderators can retract anyone's message; everyone else only their own.
   const isModerator = roleAtLeast(currentUser.role as Role, 'MODERATOR');
@@ -95,17 +106,9 @@ export function ChatClient({
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        const rows: ChatMessagePayload[] = (data.messages ?? []).map((m: Record<string, never>) => ({
-          id: m.id as unknown as string,
-          body: m.body as unknown as string,
-          type: m.type as unknown as ChatMessagePayload['type'],
-          createdAt: new Date(m.createdAt as unknown as string).toISOString(),
-          sender: m.sender as unknown as ChatMessagePayload['sender'],
-          channelId: (view.kind === 'channel' ? view.id : null) as string | null,
-          conversationId: (view.kind === 'dm' ? view.id : null) as string | null,
-          editedAt: (m.editedAt ?? null) as string | null,
-        }));
-        setMessages(rows);
+        // The route already returns the canonical chat payload, so there is no
+        // second set of casts here to fall out of step with the server.
+        setMessages((data.messages ?? []) as ChatMessagePayload[]);
       })
       .catch(() => push('Could not load message history.', 'error'))
       .finally(() => !cancelled && setLoading(false));
@@ -205,12 +208,24 @@ export function ChatClient({
     socket,
   );
 
+  function pickFile(candidate: File | null | undefined) {
+    if (!candidate) return;
+    const check = validateUploadCandidate(candidate, maxBytes);
+    if (!check.ok) {
+      push(check.message, 'error');
+      return;
+    }
+    setPendingFile(candidate);
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || !view || sending) return;
+    if ((!body && !pendingFile) || !view || sending) return;
 
     setSending(true);
+    setUploading(true);
+    setUploadProgress(0);
     try {
       // Writes go over REST, never the socket. The socket only carries live
       // fanout, presence and typing. On a sleeping free-tier instance the
@@ -224,19 +239,31 @@ export function ChatClient({
           ? `/api/channels/${view.id}/messages`
           : `/api/conversations/${view.id}/messages`;
 
+      // The file goes up first so the message can reference a real asset id.
+      let attachmentId: string | undefined;
+      if (pendingFile) {
+        const form = new FormData();
+        form.append('file', pendingFile);
+        const uploaded = await uploadWithProgress(form, setUploadProgress);
+        attachmentId = uploaded.file.id;
+      }
+
       const data = await apiFetch<{ message: ChatMessagePayload }>(url, {
         method: 'POST',
-        json: { body },
+        json: { body, attachmentId },
       });
 
       setMessages((prev) =>
         prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message],
       );
       setDraft('');
+      setPendingFile(null);
     } catch (err) {
       push(err instanceof Error ? err.message : 'Could not send the message.', 'error');
     } finally {
       setSending(false);
+      setUploading(false);
+      setUploadProgress(0);
     }
   }
 
@@ -489,16 +516,22 @@ export function ChatClient({
                             </button>
                           )}
                         </p>
-                        <div
-                          className={cn(
-                            'inline-block whitespace-pre-wrap break-words rounded-xl px-4 py-2 text-left text-sm',
-                            mine
-                              ? 'bg-accent-green/10 text-text-primary'
-                              : 'bg-bg-secondary text-text-primary',
-                          )}
-                        >
-                          {message.body}
-                        </div>
+                        {message.attachment && (
+                          <Attachment attachment={message.attachment} mine={mine} />
+                        )}
+                        {message.body && (
+                          <div
+                            className={cn(
+                              'inline-block whitespace-pre-wrap break-words rounded-xl px-4 py-2 text-left text-sm',
+                              message.attachment ? 'mt-1.5' : '',
+                              mine
+                                ? 'bg-accent-green/10 text-text-primary'
+                                : 'bg-bg-secondary text-text-primary',
+                            )}
+                          >
+                            {message.body}
+                          </div>
+                        )}
                         {message.editedAt && (
                           <p className="mt-0.5 text-[0.65rem] text-text-tertiary">(edited)</p>
                         )}
@@ -516,19 +549,80 @@ export function ChatClient({
             </div>
 
             <form onSubmit={send} className="border-t border-border p-3">
+              {pendingFile && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-bg-secondary px-3 py-2">
+                  <span aria-hidden>📎</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-text-secondary">
+                    {pendingFile.name}
+                    <span className="ml-1.5 text-text-tertiary">
+                      {formatBytes(pendingFile.size)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingFile(null)}
+                    disabled={uploading}
+                    className="rounded px-1 text-xs text-text-tertiary hover:text-accent-rose disabled:opacity-40"
+                    aria-label="Remove attachment"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  id="chat-file"
+                  type="file"
+                  className="sr-only"
+                  accept={ACCEPT}
+                  onChange={(e) => {
+                    pickFile(e.target.files?.[0]);
+                    // Reset so re-picking the same file still fires onChange.
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title={`Attach a file (max ${maxUploadMb} MB)`}
+                  aria-label="Attach a file"
+                  className="btn-ghost shrink-0 px-2.5 disabled:opacity-40"
+                >
+                  📎
+                </button>
                 <input
                   value={draft}
                   onChange={(e) => onDraftChange(e.target.value)}
                   maxLength={4000}
-                  placeholder={connected ? 'Type a message…' : 'Type a message (sending via HTTP)'}
+                  placeholder={
+                    connected ? 'Type a message…' : 'Type a message (sending via HTTP)'
+                  }
                   className="input"
                   aria-label="Message"
                 />
-                <button type="submit" className="btn-primary" disabled={sending || !draft.trim()}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={sending || (!draft.trim() && !pendingFile)}
+                >
                   {sending ? <Spinner /> : 'Send'}
                 </button>
               </div>
+              {uploading && (
+                <div className="mt-2">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-accent-green transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[0.65rem] text-text-tertiary">
+                    Uploading attachment… {uploadProgress}%
+                  </p>
+                </div>
+              )}
               {!connected && (
                 <p className="mt-1.5 text-[0.65rem] text-accent-amber">
                   Live connection unavailable — messages will send over HTTP until it recovers.
@@ -538,6 +632,60 @@ export function ChatClient({
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * One attachment inside a bubble. Images preview inline; everything else is a
+ * download card. Bytes are only ever reachable through /api/files/[id], which
+ * re-checks the session, so the href is the id and nothing else.
+ */
+function Attachment({ attachment, mine }: { attachment: ChatAttachment; mine: boolean }) {
+  const [broken, setBroken] = useState(false);
+  const href = `/api/files/${attachment.id}`;
+  const isImage = attachment.mimeType.startsWith('image/') && !broken;
+
+  if (isImage) {
+    return (
+      <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={attachment.name}
+          className="block overflow-hidden rounded-xl border border-border"
+        >
+          {/* Plain img on purpose: the bytes sit behind a session check, so the
+              Next image optimiser would fetch them unauthenticated and 401. */}
+          <img
+            src={href}
+            alt={attachment.name}
+            onError={() => setBroken(true)}
+            className="max-h-64 w-auto max-w-full object-contain"
+          />
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+      <a
+        href={href}
+        download={attachment.name}
+        className="flex max-w-xs items-center gap-2 rounded-xl border border-border bg-bg-secondary px-3 py-2 text-left transition hover:border-accent-green/50"
+      >
+        <span aria-hidden className="shrink-0 text-accent-green">
+          {broken ? '⚠' : '📎'}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-xs text-text-primary">{attachment.name}</span>
+          <span className="block text-[0.65rem] text-text-tertiary">
+            {formatBytes(attachment.sizeBytes)}
+          </span>
+        </span>
+      </a>
     </div>
   );
 }

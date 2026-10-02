@@ -6,6 +6,7 @@ import { apiFetch } from '@/hooks/use-socket';
 import { Avatar, RoleBadge, Spinner, Tag, EmptyState } from '@/components/ui';
 import { Markdown } from '@/components/markdown';
 import { formatBytes, timeAgo, cn } from '@/lib/utils';
+import { ACCEPT, uploadWithProgress, validateUploadCandidate } from '@/lib/upload';
 
 interface FileAsset {
   id: string;
@@ -65,20 +66,12 @@ export function ResourcesClient({
 
   const maxBytes = maxUploadMb * 1024 * 1024;
 
-  // Accept list is shared by the picker and the drop zone so both reject the
-  // same types before anything reaches the network.
-  const ACCEPT =
-    '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.tar,.gz,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif';
-
   /** Validate and stage a picked/dropped file. */
   function pickFile(candidate: File | null | undefined) {
     if (!candidate) return;
-    if (candidate.size === 0) {
-      push('That file is empty.', 'error');
-      return;
-    }
-    if (candidate.size > maxBytes) {
-      push(`"${candidate.name}" is ${formatBytes(candidate.size)}. Limit is ${maxUploadMb} MB.`, 'error');
+    const check = validateUploadCandidate(candidate, maxBytes);
+    if (!check.ok) {
+      push(check.message, 'error');
       return;
     }
     setFile(candidate);
@@ -533,73 +526,6 @@ function ModeTab({
       {label}
     </button>
   );
-}
-
-/**
- * POST multipart form data while reporting byte progress.
- *
- * `fetch` has no upload progress event, so XHR is used for this one request.
- * Resolves the parsed JSON body; rejects with the API's error message.
- */
-function uploadWithProgress(
-  form: FormData,
-  onProgress: (percent: number) => void,
-): Promise<{ file: { id: string } }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/files/upload');
-
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
-      }
-    });
-
-    xhr.addEventListener('load', () => {
-      const type = xhr.getResponseHeader('content-type') ?? '(none)';
-      const raw = xhr.responseText ?? '';
-
-      let body: { file?: { id: string }; error?: { message?: string } } | null = null;
-      try {
-        body = JSON.parse(raw);
-      } catch {
-        // Not a parseable reply. The id may still be in the header, so only
-        // report a hard failure once that has been ruled out too.
-        console.error('[upload] non-JSON response', {
-          status: xhr.status,
-          contentType: type,
-          bodyLength: raw.length,
-          headerFileId: xhr.getResponseHeader('x-file-id'),
-          body: raw.slice(0, 500),
-        });
-      }
-
-      const fileId = body?.file?.id ?? xhr.getResponseHeader('x-file-id');
-      if (xhr.status >= 200 && xhr.status < 300 && fileId) {
-        onProgress(100);
-        resolve({ file: { id: fileId } });
-        return;
-      }
-
-      if (body?.error?.message) {
-        reject(new Error(body.error.message));
-        return;
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        const detail = raw.trim().slice(0, 200) || '(empty body)';
-        reject(
-          new Error(`Upload failed: HTTP ${xhr.status} returned ${type}, not JSON. Body: ${detail}`),
-        );
-        return;
-      }
-      reject(new Error(`Upload failed (HTTP ${xhr.status}).`));
-    });
-
-    xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
-    xhr.addEventListener('abort', () => reject(new Error('Upload cancelled.')));
-
-    xhr.send(form);
-  });
 }
 
 function parseTags(input: string): string[] {
