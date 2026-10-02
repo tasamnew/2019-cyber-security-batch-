@@ -14,37 +14,27 @@ export const metadata: Metadata = {
     template: `%s · ${DEFAULT_SITE_NAME}`,
   },
   description,
-  manifest: '/manifest.webmanifest',
+  // No web app manifest and no service worker: this is reached as a link in a
+  // browser, not installed. `apple-touch-icon` is still set so that anyone who
+  // bookmarks to the home screen gets a real icon rather than a screenshot.
   icons: {
-    icon: [
-      { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-    ],
-    // iOS ignores the manifest and reads this one instead. It must be opaque:
-    // iOS composites a transparent icon on black.
-    apple: '/icons/apple-touch-icon.png',
+    icon: '/logo.svg',
+    apple: '/logo.svg',
   },
-  // Link previews. Absolute URLs are required — crawlers resolve these against
-  // the requesting page, and a relative path produces a broken card.
+  // Link previews for when the URL is shared, e.g. on Telegram. Relative paths
+  // are correct here: these are resolved against the deployment origin.
   openGraph: {
     type: 'website',
     siteName: title,
     title,
     description,
-    images: [
-      {
-        url: '/icons/social-card.png',
-        width: 1200,
-        height: 630,
-        alt: `${DEFAULT_SITE_NAME} — ${SITE_TAGLINE}`,
-      },
-    ],
+    images: [{ url: '/social-card.png', width: 1200, height: 630, alt: title }],
   },
   twitter: {
     card: 'summary_large_image',
     title,
     description,
-    images: ['/icons/social-card.png'],
+    images: ['/social-card.png'],
   },
   robots: {
     // This is a private student hub: keep it out of search indexes entirely.
@@ -58,11 +48,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Tints the browser chrome on Android. Harmless without an install path, and
+  // it stops the address bar flashing white on a dark page.
   themeColor: '#0b1120',
   width: 'device-width',
   initialScale: 1,
-  // Needed for the standalone window to sit below the notch and home
-  // indicator on iOS rather than under them.
   viewportFit: 'cover',
 };
 
@@ -70,17 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <head>
-        {/*
-          iOS install support. Safari ignores the manifest for these, and
-          `apple-mobile-web-app-capable` is what removes the Safari chrome when
-          the app is launched from the home screen. A `<meta name="mobile-web-app-capable">`
-          is included for Chrome on Android, which reads that instead.
-        */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content={DEFAULT_SITE_NAME} />
-        <meta name="application-name" content={DEFAULT_SITE_NAME} />
+        {/* Stops iOS turning numeric strings in posts into dialable phone links. */}
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="min-h-screen antialiased">

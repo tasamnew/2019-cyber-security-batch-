@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="CS Hub — 2019 Cyber Security Student Group">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3df5a3"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0b1120"/>
+
+  <!-- Faint grid, matching the hero backdrop on the landing page. -->
+  <g opacity="0.07" stroke="#3df5a3" stroke-width="1">
+    <path d="M0 96h1200M0 192h1200M0 288h1200M0 384h1200M0 480h1200M0 576h1200"/>
+    <path d="M96 0v630M192 0v630M288 0v630M384 0v630M480 0v630M576 0v630M672 0v630M768 0v630M864 0v630M960 0v630M1056 0v630M1152 0v630"/>
+  </g>
+
+  <!-- The shield mark, at a heavier weight than logo.svg so it survives being
+       rendered small in a chat client's link preview. -->
+  <g transform="translate(96 130) scale(0.72)">
+    <path d="M256 24 466 92v134c0 132-88 232-210 262C134 458 46 358 46 226V92Z" fill="url(#shield)"/>
+    <path d="M256 76 418 129v97c0 100-64 178-162 202C158 404 94 326 94 226v-97Z" fill="#0b1120"/>
+    <g fill="#3df5a3">
+      <path d="M196 196 268 256l-72 60 36 42 108-102-108-102Z"/>
+      <path d="M300 316h56v42h-56Z"/>
+    </g>
+  </g>
+
+  <text x="452" y="288" font-family="Segoe UI, Inter, system-ui, sans-serif" font-size="88" font-weight="700" fill="#f8fafc">CS Hub</text>
+  <text x="452" y="342" font-family="Segoe UI, Inter, system-ui, sans-serif" font-size="32" fill="#94a3b8">2019 Cyber Security Student Group</text>
+  <text x="452" y="398" font-family="Segoe UI, Inter, system-ui, sans-serif" font-size="26" fill="#3df5a3">Discussion · Resources · CTF · Assignments</text>
+</svg>
