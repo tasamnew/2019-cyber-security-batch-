@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         avatarSeed: user.avatarSeed,
       }}
     >
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full overflow-x-hidden">
         <Sidebar siteName={settings.siteName} />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <UserMenu />
           </header>
 
-          <main id="main" className="min-w-0 flex-1 px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
+          <main id="main" className="min-w-0 w-full flex-1 px-3 py-3 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>

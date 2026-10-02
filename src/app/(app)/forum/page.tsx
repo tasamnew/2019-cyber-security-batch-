@@ -78,7 +78,7 @@ export default async function ForumPage({
   const isModerator = user.role === 'ADMIN' || user.role === 'MODERATOR';
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full max-w-none space-y-6 sm:max-w-6xl sm:mx-auto sm:space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Discussion Forum</h1>

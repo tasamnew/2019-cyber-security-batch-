@@ -42,7 +42,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
   return (
     <>
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-bg-primary/95 px-3 py-2.5 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-bg-primary/95 px-3 py-2.5 backdrop-blur sm:px-4 sm:py-3 lg:hidden">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
@@ -67,7 +67,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
             className="absolute inset-0 bg-slate-950/70"
             onClick={() => setOpen(false)}
           />
-          <nav className="relative h-full w-64 border-r border-border bg-bg-secondary p-4">
+          <nav className="relative h-full w-72 max-w-[85vw] border-r border-border bg-bg-secondary p-4">
             <p className="px-3 pb-3 font-mono text-lg font-bold">
               <LogoLockup siteName={siteName} />
             </p>
@@ -77,7 +77,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-bg-secondary/60 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-border bg-bg-secondary/60 lg:flex">
         <div className="border-b border-border px-5 py-5">
           <Link href="/dashboard" className="font-mono text-lg font-bold">
             <LogoLockup siteName={siteName} />
