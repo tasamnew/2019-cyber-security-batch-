@@ -2,27 +2,27 @@
 
 @theme {
   /* Core palette */
-  --color-bg-primary: #0f172a;
-  --color-bg-secondary: #0b1225;
-  --color-bg-tertiary: #0f1a33;
-  --color-surface: #0f1830;
-  --color-surface-raised: #111b3a;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1f5f9;
 
-  /* Cybersecurity accents (matrix/terminal) */
-  --color-accent-green: #3df5a3;
-  --color-accent-cyan: #3dd6ff;
-  --color-accent-teal: #34d1b2;
-  --color-accent-amber: #f5b301;
-  --color-accent-rose: #ff4d67;
+  /* Cybersecurity accents (darkened for contrast on a light background) */
+  --color-accent-green: #047857;
+  --color-accent-cyan: #0e7490;
+  --color-accent-teal: #0f766e;
+  --color-accent-amber: #b45309;
+  --color-accent-rose: #e11d48;
 
   /* Text */
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
   --color-text-tertiary: #64748b;
 
   /* Borders */
-  --color-border: rgba(51, 65, 85, 0.5);
-  --color-border-strong: rgba(100, 116, 139, 0.6);
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-strong: rgba(15, 23, 42, 0.24);
 
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
@@ -31,7 +31,7 @@
 html,
 body {
   min-height: 100%;
-  background: radial-gradient(1200px 800px at 50% 0%, #f8fafc, #ffffff);
+  background: radial-gradient(1200px 800px at 50% 0%, var(--color-bg-tertiary), var(--color-bg-primary));
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -40,7 +40,7 @@ body {
 @layer base {
   ::selection {
     background: color-mix(in srgb, var(--color-accent-green) 40%, transparent);
-    color: var(--color-bg-primary);
+    color: var(--color-text-primary);
   }
 
   a {
@@ -78,7 +78,7 @@ body {
   }
 
   .btn-ghost {
-    @apply bg-transparent text-[var(--color-text-secondary)] hover:bg-white/5 hover:text-[var(--color-text-primary)] focus-visible:ring-[var(--color-accent-cyan)];
+    @apply bg-transparent text-[var(--color-text-secondary)] hover:bg-black/5 hover:text-[var(--color-text-primary)] focus-visible:ring-[var(--color-accent-cyan)];
   }
 
   .btn-danger {
@@ -86,7 +86,7 @@ body {
   }
 
   .card {
-    @apply rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-6 shadow-xl shadow-slate-950/40 backdrop-blur-sm;
+    @apply rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-6 shadow-xl shadow-slate-900/10 backdrop-blur-sm;
   }
 
   .input {
@@ -98,7 +98,7 @@ body {
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-white/5 px-2.5 py-0.5 text-xs font-medium text-[var(--color-text-secondary)];
+    @apply inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-black/5 px-2.5 py-0.5 text-xs font-medium text-[var(--color-text-secondary)];
   }
 
   .link {

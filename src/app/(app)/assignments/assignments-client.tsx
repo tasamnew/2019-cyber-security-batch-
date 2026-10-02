@@ -271,7 +271,7 @@ export function AssignmentsClient({
               <header className="mb-3 flex items-center gap-2">
                 <span className={cn('h-2 w-2 rounded-full', meta.dot)} />
                 <h2 className={cn('text-sm font-semibold', meta.accent)}>{meta.label}</h2>
-                <span className="ml-auto rounded-full bg-white/5 px-2 py-0.5 text-[0.65rem] text-text-tertiary">
+                <span className="ml-auto rounded-full bg-black/5 px-2 py-0.5 text-[0.65rem] text-text-tertiary">
                   {column.length}
                 </span>
               </header>

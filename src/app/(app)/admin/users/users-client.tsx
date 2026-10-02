@@ -139,7 +139,7 @@ export function UsersClient({
                 const busy = busyId === user.id;
 
                 return (
-                  <tr key={user.id} className="border-b border-border/60 last:border-0 hover:bg-white/[0.03]">
+                  <tr key={user.id} className="border-b border-border/60 last:border-0 hover:bg-black/[0.03]">
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-2.5">
                         <Avatar name={user.name} seed={user.avatarSeed} size="sm" />

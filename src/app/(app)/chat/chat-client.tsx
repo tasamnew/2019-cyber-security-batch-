@@ -324,7 +324,7 @@ export function ChatClient({
                   'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
                   view?.kind === 'channel' && view.id === channel.id
                     ? 'bg-accent-green/10 text-accent-green'
-                    : 'text-text-secondary hover:bg-white/5',
+                    : 'text-text-secondary hover:bg-black/5',
                 )}
               >
                 <span aria-hidden className="text-xs">
@@ -368,7 +368,7 @@ export function ChatClient({
                     <li key={m.id}>
                       <button
                         onClick={() => startDm(m.id)}
-                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-white/5"
+                        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-black/5"
                       >
                         <Avatar name={m.name} seed={m.avatarSeed} size="xs" />
                         <span className="truncate text-text-secondary">{m.name}</span>
@@ -396,7 +396,7 @@ export function ChatClient({
                       'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition',
                       view?.kind === 'dm' && view.id === convo.id
                         ? 'bg-accent-green/10'
-                        : 'hover:bg-white/5',
+                        : 'hover:bg-black/5',
                     )}
                   >
                     <Avatar name={convo.participant.name} seed={convo.participant.avatarSeed} size="sm" />

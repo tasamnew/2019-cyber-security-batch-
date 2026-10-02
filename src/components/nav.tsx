@@ -95,7 +95,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
           <div className="border-t border-border p-3">
             <Link
               href="/profile"
-              className="flex items-center gap-3 rounded-lg p-2 transition hover:bg-white/5"
+              className="flex items-center gap-3 rounded-lg p-2 transition hover:bg-black/5"
             >
               <Avatar name={user.name} seed={user.avatarSeed} size="sm" showRing />
               <span className="min-w-0 flex-1">
@@ -126,7 +126,7 @@ function NavList({ items, pathname }: { items: NavItem[]; pathname: string }) {
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition',
                 active
                   ? 'bg-accent-green/10 font-medium text-accent-green'
-                  : 'text-text-secondary hover:bg-white/5 hover:text-text-primary',
+                  : 'text-text-secondary hover:bg-black/5 hover:text-text-primary',
               )}
             >
               <span aria-hidden className="w-4 text-center text-xs">

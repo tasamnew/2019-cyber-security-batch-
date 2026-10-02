@@ -37,7 +37,7 @@ export function Markdown({ content, className }: { content: string; className?: 
       if (!language && !text.includes('\n')) {
         return (
           <code
-            className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[0.85em] text-accent-cyan"
+            className="rounded bg-black/5 px-1.5 py-0.5 text-[0.85em] text-accent-cyan"
             {...props}
           >
             {children}
@@ -64,7 +64,7 @@ export function Markdown({ content, className }: { content: string; className?: 
                     .replace('hljs', '')
                 : '';
             return lang ? (
-              <div className="border-b border-border px-4 py-1.5 text-[0.7rem] uppercase tracking-wider text-accent-cyan/80">
+              <div className="border-b border-border px-4 py-1.5 text-[0.7rem] uppercase tracking-wider text-[#67e8f9]">
                 {lang}
               </div>
             ) : null;
@@ -92,7 +92,7 @@ export function Markdown({ content, className }: { content: string; className?: 
     blockquote({ children, ...props }) {
       return (
         <blockquote
-          className="my-4 border-l-2 border-accent-cyan/60 bg-white/[0.03] py-1 pl-4 text-text-secondary"
+          className="my-4 border-l-2 border-accent-cyan/60 bg-black/[0.03] py-1 pl-4 text-text-secondary"
           {...props}
         >
           {children}

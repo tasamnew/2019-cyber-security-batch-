@@ -38,7 +38,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-lg p-1 transition hover:bg-white/5"
+        className="flex items-center gap-2 rounded-lg p-1 transition hover:bg-black/5"
       >
         <Avatar name={user.name} seed={user.avatarSeed} size="sm" showRing />
         <span className="hidden text-sm text-text-primary xl:block">{user.name}</span>
@@ -97,7 +97,7 @@ function MenuLink({
       href={href}
       role="menuitem"
       onClick={onClick}
-      className="block rounded-lg px-4 py-2 text-sm text-text-secondary transition hover:bg-white/5 hover:text-text-primary"
+      className="block rounded-lg px-4 py-2 text-sm text-text-secondary transition hover:bg-black/5 hover:text-text-primary"
     >
       {children}
     </Link>

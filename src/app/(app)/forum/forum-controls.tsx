@@ -126,7 +126,7 @@ function FilterChip({
         'shrink-0 rounded-full border px-3 py-1.5 text-sm transition',
         active
           ? 'border-accent-green bg-accent-green/10 text-accent-green'
-          : 'border-border bg-white/5 text-text-secondary hover:border-accent-green/40 hover:text-text-primary',
+          : 'border-border bg-black/5 text-text-secondary hover:border-accent-green/40 hover:text-text-primary',
       )}
       style={active && color ? { borderColor: color, color } : undefined}
     >

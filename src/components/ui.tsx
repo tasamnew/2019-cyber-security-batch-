@@ -103,7 +103,7 @@ export function Tag({ children, onClick, active }: { children: React.ReactNode; 
         'rounded-full border px-2.5 py-0.5 font-mono text-xs transition',
         active
           ? 'border-accent-cyan bg-accent-cyan/15 text-accent-cyan'
-          : 'border-border bg-white/5 text-text-tertiary',
+          : 'border-border bg-black/5 text-text-tertiary',
         onClick && 'hover:border-accent-cyan/60 hover:text-accent-cyan',
       )}
     >

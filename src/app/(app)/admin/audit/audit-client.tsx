@@ -70,7 +70,7 @@ export function AuditClient({
             <tbody>
               {visible.map((entry) => (
                 <Fragment key={entry.id}>
-                  <tr className="border-b border-border/60 last:border-0 hover:bg-white/[0.03]">
+                  <tr className="border-b border-border/60 last:border-0 hover:bg-black/[0.03]">
                     <td className="whitespace-nowrap px-4 py-2.5 text-xs text-text-tertiary">
                       {new Date(entry.createdAt).toLocaleString()}
                     </td>

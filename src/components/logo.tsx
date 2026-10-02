@@ -6,12 +6,13 @@ import { cn } from '@/lib/utils';
  *
  * The mark lives at `public/logo.svg`. To change the branding, replace that one
  * file — no component edits are needed anywhere. A square transparent SVG or a
- * square PNG (`public/logo.png`, then update LOGO_SRC below) both work.
+ * square PNG with transparency both work.
  *
  * Recommended source canvas: 512x512 with transparency so it stays sharp on
- * high-DPI screens and in the browser tab.
+ * high-DPI screens and in the browser tab. Note `public/logo.png` is opaque and
+ * near-black, so it renders as a black box and is deliberately unused.
  */
-const LOGO_SRC = '/logo.png';
+const LOGO_SRC = '/logo.svg';
 
 export function LogoMark({ className }: { className?: string }) {
   return (
