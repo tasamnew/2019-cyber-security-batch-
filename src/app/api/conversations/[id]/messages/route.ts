@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
+import { broadcastToConversation, toChatPayload } from '@/lib/realtime';
 
 /** GET/POST /api/conversations/[id]/messages — DM history + REST send fallback. */
 export const GET = handler(
@@ -85,6 +86,9 @@ export const POST = handler(
       where: { id },
       data: { updatedAt: new Date() },
     });
+
+    // Sends are REST, so the live fanout is triggered here (see lib/realtime).
+    broadcastToConversation(id, toChatPayload(message));
 
     return ok({ message }, 201);
   },

@@ -37,9 +37,12 @@ export function useSocket(enabled = true) {
       // websocket forever, so it never connected and chat sat on the REST
       // fallback. Polling is what gets through proxies that block upgrades.
       tryAllTransports: true,
-      // A proxied free-tier instance can be slow to accept the first connection.
-      reconnectionAttempts: 10,
+      // Keep retrying in the background. A free instance that sleeps drops the
+      // socket, and the user should not have to reload to get it back.
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
     });
 
     socketRef.current = socket;
@@ -105,10 +108,25 @@ export function emitWithAck<T extends keyof ClientToServerEvents>(
   payload: Parameters<ClientToServerEvents[T]>[0],
 ): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   return new Promise((resolve) => {
-    const ack: Ack = (response) => resolve(response);
+    // Never queue on a dead socket: socket.io buffers the packet and flushes it
+    // on the next successful connect, so the timer below would expire long
+    // before the server ever saw it. Fail fast and let the caller fall back.
+    if (!socket.connected) {
+      resolve({ ok: false, error: 'Not connected.' });
+      return;
+    }
+
+    const timer = setTimeout(
+      () => resolve({ ok: false, error: 'Timed out. Check your connection.' }),
+      8000,
+    );
+    const ack: Ack = (response) => {
+      clearTimeout(timer);
+      resolve(response);
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (socket.emit as any)(event, payload, ack);
-    setTimeout(() => resolve({ ok: false, error: 'Timed out. Check your connection.' }), 8000);
   });
 }
 

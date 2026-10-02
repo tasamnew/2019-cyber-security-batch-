@@ -212,54 +212,26 @@ export function ChatClient({
 
     setSending(true);
     try {
-      const s = socket.current;
+      // Writes go over REST, never the socket. The socket only carries live
+      // fanout, presence and typing. On a sleeping free-tier instance the
+      // socket is the first thing to drop and the last to recover, so making
+      // the send depend on an ack meant "Timed out. Check your connection."
+      // and a message that only appeared minutes later. REST has one write
+      // path, returns the new id, and cannot half-succeed; the broadcast that
+      // follows arrives over the socket and is deduped by id below.
+      const url =
+        view.kind === 'channel'
+          ? `/api/channels/${view.id}/messages`
+          : `/api/conversations/${view.id}/messages`;
 
-      // Prefer the socket; fall back to REST so chat works while reconnecting.
-      if (s && connected_) {
-        const result =
-          view.kind === 'channel'
-            ? await emitWithAck(s, 'channel:send', { channelId: view.id, body })
-            : await emitWithAck(s, 'conversation:send', { conversationId: view.id, body });
+      const data = await apiFetch<{ message: ChatMessagePayload }>(url, {
+        method: 'POST',
+        json: { body },
+      });
 
-        if (!result.ok) throw new Error(result.error ?? 'Could not send the message.');
-
-        // The broadcast echoes back, but for DMs sent from another tab the
-        // personal room may not include us — optimistic append as a fallback.
-        if (view.kind === 'dm') {
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === result.messageId)) return prev;
-            return [
-              ...prev,
-              {
-                id: result.messageId ?? `pending-${Date.now()}`,
-                body,
-                type: 'TEXT',
-                createdAt: new Date().toISOString(),
-                sender: {
-                  id: currentUser.id,
-                  name: currentUser.name,
-                  role: currentUser.role,
-                },
-                conversationId: view.id,
-              },
-            ];
-          });
-        }
-      } else {
-        const url =
-          view.kind === 'channel'
-            ? `/api/channels/${view.id}/messages`
-            : `/api/conversations/${view.id}/messages`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ body }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error?.message ?? 'Could not send the message.');
-        setMessages((prev) => [...prev, data.message]);
-      }
-
+      setMessages((prev) =>
+        prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message],
+      );
       setDraft('');
     } catch (err) {
       push(err instanceof Error ? err.message : 'Could not send the message.', 'error');

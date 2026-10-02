@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
+import { broadcastToChannel, toChatPayload } from '@/lib/realtime';
 
 /**
  * GET/POST /api/channels/[id]/messages
@@ -99,6 +100,10 @@ export const POST = handler(
       },
       include: { sender: { select: { id: true, name: true, role: true, avatarSeed: true } } },
     });
+
+    // The send path is REST, so the live fanout has to be triggered here or
+    // other members would only see the message after a reload.
+    broadcastToChannel(id, toChatPayload(message));
 
     return ok({ message }, 201);
   },

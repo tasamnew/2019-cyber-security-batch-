@@ -82,6 +82,11 @@ const io = new SocketIOServer(httpServer, {
   pingTimeout: 25_000,
 });
 
+// Chat writes go through the REST routes, which run inside Next in this same
+// process. Publishing the server here lets those handlers broadcast, so a
+// message posted over HTTP still reaches everyone else's open tab.
+globalThis.__csIo = io;
+
 io.use(async (socket, next) => {
   const data = await authenticateSocket(socket);
   if (!data) return next(new Error('unauthorized'));

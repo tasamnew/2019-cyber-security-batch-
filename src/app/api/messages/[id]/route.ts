@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember, isOwnerOrModerator } from '@/lib/guards';
 import { audit } from '@/lib/audit';
+import { broadcastDeletion } from '@/lib/realtime';
 
 /**
  * DELETE /api/messages/[id]
@@ -38,6 +39,9 @@ export const DELETE = handler(
     const { channelId, conversationId } = message;
 
     await db.message.delete({ where: { id } });
+
+    // Tell every open client to drop it, not just the sender's tab.
+    broadcastDeletion({ messageId: id, channelId, conversationId });
 
     await audit({
       actorId: actor.id,
