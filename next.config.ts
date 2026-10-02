@@ -50,6 +50,29 @@ const nextConfig: NextConfig = {
         ].filter((h) => h.value !== ''),
       },
       {
+        // The service worker must be served from the origin root or its scope
+        // cannot cover the whole app. Next.js serves `public/sw.js` at `/sw.js`
+        // already, and no extra header is required for the scope itself.
+        //
+        // `no-store` matters though: a cached worker is a worker that cannot be
+        // replaced, so a user would be pinned to a stale copy indefinitely after
+        // a deploy. `Service-Worker-Allowed` is set defensively so the scope
+        // survives even if the file is ever moved into a subdirectory.
+        source: '/sw.js',
+        headers: [
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        // Icons are content-stable but the filenames are not hashed, so a
+        // redeploy that redraws the mark would otherwise be invisible to anyone
+        // who already has the app installed.
+        source: '/icons/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
+      },
+      {
         // Uploaded resources are user-supplied binaries: never let the browser
         // sniff or render them inline from our origin.
         //

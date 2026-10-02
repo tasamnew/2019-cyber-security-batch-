@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { LogoLockup } from '@/components/logo';
+import { ShareButton } from '@/components/share-button';
 
 export function LandingNav({ siteName }: { siteName: string }) {
   const { user } = useAuth();
@@ -15,6 +16,16 @@ export function LandingNav({ siteName }: { siteName: string }) {
         </Link>
 
         <div className="flex items-center gap-3">
+          {/*
+            No `url` prop: the location is read at click time instead. Computing
+            it during render would give the server `undefined` and the browser
+            the origin, which is a hydration mismatch on the very first paint.
+          */}
+          <ShareButton
+            title={`${siteName} — 2019 Cyber Security Student Group`}
+            text="Discussion, resources, CTF practice and assignment tracking."
+            label="Share"
+          />
           {user ? (
             <Link href="/dashboard" className="btn-primary">
               Dashboard

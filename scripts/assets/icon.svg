@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="CS Hub">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3df5a3"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    App icon geometry.
+
+    Drawn at 512 with far heavier strokes than logo.svg. The web logo is shown
+    beside text at desktop sizes, where a 1px-equivalent chevron is legible; an
+    icon is also rendered at 48px on an Android launcher, where that same
+    weight disappears entirely. The shield edge and the `>` are both roughly
+    doubled from the web mark, and the interior is left empty rather than
+    outlined, so the silhouette still reads when the whole thing is 40px wide.
+  -->
+
+  <path d="M256 24 466 92v134c0 132-88 232-210 262C134 458 46 358 46 226V92Z" fill="url(#shield)"/>
+  <path d="M256 76 418 129v97c0 100-64 178-162 202C158 404 94 326 94 226v-97Z" fill="#0b1120"/>
+
+  <!-- Terminal prompt: a chevron plus a cursor block. -->
+  <g fill="#3df5a3">
+    <path d="M196 196 268 256l-72 60 36 42 108-102-108-102Z"/>
+    <path d="M300 316h56v42h-56Z"/>
+  </g>
+</svg>

@@ -4,6 +4,7 @@ import { getSettings } from '@/lib/settings';
 import { Sidebar } from '@/components/nav';
 import { AuthProvider } from '@/hooks/use-auth';
 import { UserMenu } from '@/components/user-menu';
+import { InstallPrompt } from '@/components/install-prompt';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
+
+      {/* Registers the service worker and offers the install prompt. Renders
+          nothing once installed or dismissed. */}
+      <InstallPrompt />
     </AuthProvider>
   );
 }
