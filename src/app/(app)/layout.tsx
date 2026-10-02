@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <UserMenu />
           </header>
 
-          <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <main id="main" className="min-w-0 flex-1 px-4 py-4 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>

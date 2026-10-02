@@ -42,7 +42,7 @@ export function Sidebar({ siteName }: { siteName: string }) {
   return (
     <>
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-bg-primary/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-bg-primary/95 px-3 py-2.5 backdrop-blur lg:hidden">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
