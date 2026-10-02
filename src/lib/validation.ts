@@ -163,6 +163,8 @@ export const channelCreateSchema = z.object({
   kind: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
 });
 
+export const channelUpdateSchema = channelCreateSchema.partial();
+
 export const messageCreateSchema = z.object({
   body: clean(4000).pipe(z.string().min(1, 'Message cannot be empty.')),
   attachmentId: z.string().cuid().nullish(),

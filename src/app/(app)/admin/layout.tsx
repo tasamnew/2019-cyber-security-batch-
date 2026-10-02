@@ -12,6 +12,7 @@ const LINKS = [
   { href: '/admin/users', label: 'Members', icon: '◉', badge: 'pending' },
   { href: '/admin/moderation', label: 'Moderation', icon: '⚑', badge: 'reports' },
   { href: '/admin/announcements', label: 'Announcements', icon: '✦', badge: 0 },
+  { href: '/admin/taxonomy', label: 'Channels & categories', icon: '⬢', badge: 0 },
   { href: '/admin/settings', label: 'Settings', icon: '⚙', badge: 0 },
   { href: '/admin/audit', label: 'Audit log', icon: '≡', badge: 0 },
 ] as const;
