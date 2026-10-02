@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
-import { broadcastToChannel, messageInclude, toChatPayload } from '@/lib/realtime';
+import { broadcastToChannel, broadcastUnreadChanged, messageInclude, toChatPayload } from '@/lib/realtime';
 
 /**
  * GET/POST /api/channels/[id]/messages
@@ -119,6 +119,19 @@ export const POST = handler(
     // The send path is REST, so the live fanout has to be triggered here or
     // other members would only see the message after a reload.
     broadcastToChannel(id, payload);
+
+    // Members who are not looking at this channel still need their badge
+    // updated, and they are not in `channel:${id}` because the client only
+    // joins the room it is currently viewing.
+    const recipients = await db.channelMember.findMany({
+      where: { channelId: id, userId: { not: actor.id } },
+      select: { userId: true },
+    });
+    broadcastUnreadChanged(
+      recipients.map((r) => r.userId),
+      'channel',
+      id,
+    );
 
     return ok({ message: payload }, 201);
   },

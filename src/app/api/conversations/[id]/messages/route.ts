@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { handler, ok, ApiError } from '@/lib/api-response';
 import { requireMember } from '@/lib/guards';
 import { messageCreateSchema } from '@/lib/validation';
-import { broadcastToConversation, messageInclude, toChatPayload } from '@/lib/realtime';
+import { broadcastToConversation, broadcastUnreadChanged, messageInclude, toChatPayload } from '@/lib/realtime';
 
 /** GET/POST /api/conversations/[id]/messages — DM history + REST send fallback. */
 export const GET = handler(
@@ -117,6 +117,14 @@ export const POST = handler(
 
     // Sends are REST, so the live fanout is triggered here (see lib/realtime).
     broadcastToConversation(id, payload);
+
+    // The recipient is not in `conversation:${id}` unless they happen to be
+    // viewing it, so the badge update goes to their personal room instead.
+    broadcastUnreadChanged(
+      [conversation.senderId, conversation.recipientId].filter((uid) => uid !== actor.id),
+      'conversation',
+      id,
+    );
 
     return ok({ message: payload }, 201);
   },

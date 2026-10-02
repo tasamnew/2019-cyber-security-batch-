@@ -126,6 +126,7 @@ model User {
   messages        Message[]
   sentMessages    Message[]     @relation("DirectMessages")
   channels        ChannelMember[]
+  readStates      ReadState[]
   conversations   Conversation[] @relation("ConversationSender")
   receivedConversations Conversation[] @relation("ConversationRecipient")
   resources       Resource[]
@@ -282,6 +283,21 @@ model ChannelMember {
   joinedAt  DateTime @default(now())
 
   @@unique([userId, channelId])
+}
+
+// How far a user has read in one conversation, covering channels and DMs alike.
+// `scope` is a discriminator rather than two nullable FKs so the unread count
+// and the "mark read" write are one query shape instead of two.
+model ReadState {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope      String // 'channel' | 'conversation'
+  scopeId    String
+  lastReadAt DateTime @default(now())
+
+  @@unique([userId, scope, scopeId])
+  @@index([userId, scope])
 }
 
 model Message {

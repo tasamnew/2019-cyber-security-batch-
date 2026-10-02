@@ -48,6 +48,47 @@ export default async function ChatPage() {
 
   const isModerator = user.role === 'ADMIN' || user.role === 'MODERATOR';
 
+  // Unread counts are resolved before the first paint so the sidebar never
+  // renders a frame with no badges and then jumps. Mirrors GET /api/chat/read.
+  const keys = [
+    ...channels.map((c) => `channel:${c.id}`),
+    ...conversations.map((c) => `conversation:${c.id}`),
+  ];
+  const initialUnread: Record<string, number> = Object.fromEntries(keys.map((k) => [k, 0]));
+
+  if (keys.length > 0) {
+    // A joined string rather than a JS array parameter: `ANY($1::text[])` relies
+    // on how Prisma serialises arrays, which cannot be checked without a live
+    // database, and a failure here would take down the whole chat page. CUIDs
+    // never contain a comma, so splitting on one is unambiguous.
+    const keyList = keys.join(',');
+    try {
+      const rows = await db.$queryRaw<{ scope: string; scopeId: string; count: number }[]>`
+        SELECT
+          CASE WHEN m."channelId" IS NOT NULL THEN 'channel' ELSE 'conversation' END AS scope,
+          COALESCE(m."channelId", m."conversationId") AS "scopeId",
+          COUNT(*)::int AS count
+        FROM "Message" m
+        LEFT JOIN "ReadState" r
+          ON r."userId" = ${user.id}::text
+         AND r."scope" = CASE WHEN m."channelId" IS NOT NULL THEN 'channel' ELSE 'conversation' END
+         AND r."scopeId" = COALESCE(m."channelId", m."conversationId")
+        WHERE COALESCE(m."channelId", m."conversationId") = ANY(string_to_array(${keyList}, ','))
+          AND m."senderId" <> ${user.id}::text
+          AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt")
+        GROUP BY 1, 2
+      `;
+      for (const row of rows) {
+        const key = `${row.scope}:${row.scopeId}`;
+        if (key in initialUnread) initialUnread[key] = row.count;
+      }
+    } catch (err) {
+      // Badges are cosmetic. If this query fails the page must still render, so
+      // fall back to no badges rather than 500-ing chat on a SQL detail.
+      console.error('[chat] unread counts failed', err);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl">
       <header className="mb-6">
@@ -89,6 +130,7 @@ export default async function ChatPage() {
         canCreateChannels={isModerator}
         canPinChannels={user.role === 'ADMIN'}
         maxUploadMb={settings.maxUploadMb}
+        initialUnread={initialUnread}
       />
     </div>
   );

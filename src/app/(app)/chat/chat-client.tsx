@@ -50,6 +50,7 @@ export function ChatClient({
   canCreateChannels,
   canPinChannels,
   maxUploadMb,
+  initialUnread,
 }: {
   currentUser: { id: string; name: string; role: string; avatarSeed: string };
   channels: Channel[];
@@ -58,6 +59,7 @@ export function ChatClient({
   canCreateChannels: boolean;
   canPinChannels: boolean;
   maxUploadMb: number;
+  initialUnread: Record<string, number>;
 }) {
   const { socket, connected, error: socketError } = useSocket(true);
   const { push } = useToast();
@@ -73,6 +75,10 @@ export function ChatClient({
   const [convoList, setConvoList] = useState(conversations);
   const [connected_] = [connected];
 
+  // Unread counts keyed by `scope:id`, seeded from the server so the first
+  // paint already shows badges instead of flashing empty and filling in.
+  const [unread, setUnread] = useState<Record<string, number>>(initialUnread);
+
   // Local copy so a pin toggle can re-sort without a refetch.
   const [channelList, setChannelList] = useState(channels);
   const [pinningId, setPinningId] = useState<string | null>(null);
@@ -86,6 +92,58 @@ export function ChatClient({
     rows: ChatMessagePayload[];
   } | null>(null);
   const [searching, setSearching] = useState(false);
+
+  // Refetch counts rather than incrementing locally. A browser cannot know
+  // whether the message that triggered the nudge had already been read, and
+  // deletions shrink counts too, so any client-side arithmetic is a guess.
+  const refreshUnread = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/read');
+      if (!res.ok) return;
+      const data = (await res.json()) as { unread?: Record<string, number> };
+      if (data.unread) setUnread(data.unread);
+    } catch {
+      // A missed badge refresh is cosmetic; the next one will correct it.
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshUnread();
+  }, [refreshUnread]);
+
+  useSocketEvent('chat:unread', () => void refreshUnread(), socket);
+
+  // Opening a conversation marks it read. The visible view is what "read" means
+  // here; there is no separate receipt to click.
+  useEffect(() => {
+    if (!view) return;
+    const key = `${view.kind === 'channel' ? 'channel' : 'conversation'}:${view.id}`;
+
+    setUnread((prev) => (prev[key] ? { ...prev, [key]: 0 } : prev));
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch('/api/chat/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scope: view.kind === 'channel' ? 'channel' : 'conversation',
+          scopeId: view.id,
+        }),
+      })
+        .then(() => {
+          if (!cancelled) void refreshUnread();
+        })
+        .catch(() => {
+          // Non-fatal: the count will be re-derived on the next load.
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [view, refreshUnread]);
 
   // Pinned channels get their own group; the rest stay alphabetical.
   const { pinnedChannels, otherChannels } = useMemo(() => {
@@ -171,6 +229,10 @@ export function ChatClient({
     }
 
     const controller = new AbortController();
+    // `finally` runs on abort too, so an abandoned request would clear the
+    // spinner for the query that replaced it. Only the live request may
+    // report completion.
+    const token = { live: true };
     setSearching(true);
 
     const timer = setTimeout(() => {
@@ -184,15 +246,20 @@ export function ChatClient({
           if (!res.ok) throw new Error('Search failed.');
           return (await res.json()) as { messages?: ChatMessagePayload[] };
         })
-        .then((data) => setSearch({ viewId: view.id, term, rows: data.messages ?? [] }))
+        .then((data) => {
+          if (token.live) setSearch({ viewId: view.id, term, rows: data.messages ?? [] });
+        })
         .catch((err: unknown) => {
           if (err instanceof DOMException && err.name === 'AbortError') return;
-          push('Search failed.', 'error');
+          if (token.live) push('Search failed.', 'error');
         })
-        .finally(() => setSearching(false));
+        .finally(() => {
+          if (token.live) setSearching(false);
+        });
     }, 300);
 
     return () => {
+      token.live = false;
       controller.abort();
       clearTimeout(timer);
     };
@@ -202,12 +269,16 @@ export function ChatClient({
   const searchTerm = query.trim();
   const showingResults =
     search !== null && search.viewId === view?.id && search.term === searchTerm;
-  const visibleMessages = showingResults ? search.rows : messages;
+  // While a query is outstanding the list must not fall back to live history,
+  // or the header count would report stale "N results" for an empty box.
+  const visibleMessages = searchTerm && !showingResults ? [] : showingResults ? search.rows : messages;
 
-  // Scroll to the newest message.
+  // Scroll to the newest message. Suppressed while searching so the view does
+  // not jump to the bottom of a result list that is about to be replaced.
   useEffect(() => {
+    if (searchTerm) return;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, typingUsers]);
+  }, [messages, typingUsers, searchTerm]);
 
   const onIncoming = useCallback(
     (payload: ChatMessagePayload) => {
@@ -454,6 +525,7 @@ export function ChatClient({
                 channel={channel}
                 active={view?.kind === 'channel' && view.id === channel.id}
                 icon="📌"
+                unreadCount={unread[`channel:${channel.id}`] ?? 0}
                 onSelect={() =>
                   setView({ kind: 'channel', id: channel.id, name: channel.name, topic: channel.topic })
                 }
@@ -473,6 +545,7 @@ export function ChatClient({
                 channel={channel}
                 active={view?.kind === 'channel' && view.id === channel.id}
                 icon="#"
+                unreadCount={unread[`channel:${channel.id}`] ?? 0}
                 onSelect={() =>
                   setView({ kind: 'channel', id: channel.id, name: channel.name, topic: channel.topic })
                 }
@@ -555,6 +628,7 @@ export function ChatClient({
                         </span>
                       )}
                     </span>
+                    <Badge count={unread[`conversation:${convo.id}`]} />
                   </button>
                 </li>
               ))
@@ -820,11 +894,13 @@ function ChannelButton({
   channel,
   active,
   icon,
+  unreadCount,
   onSelect,
 }: {
   channel: Channel;
   active: boolean;
   icon: string;
+  unreadCount: number;
   onSelect: () => void;
 }) {
   return (
@@ -834,6 +910,9 @@ function ChannelButton({
       className={cn(
         'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
         active ? 'bg-accent-green/10 text-accent-green' : 'text-text-secondary hover:bg-black/5',
+        // Unread but not the active row: bold is the "you have something here"
+        // signal that survives on a monochrome screen where the pill is muted.
+        unreadCount > 0 && !active && 'font-semibold text-text-primary',
       )}
     >
       <span aria-hidden className="text-xs">
@@ -841,7 +920,21 @@ function ChannelButton({
       </span>
       <span className="min-w-0 flex-1 truncate">{channel.name}</span>
       {channel.kind === 'PRIVATE' && <span className="text-[0.6rem]">🔒</span>}
+      <Badge count={unreadCount} />
     </button>
+  );
+}
+
+/** Unread pill. Caps at 99+ so a busy channel cannot stretch the sidebar. */
+function Badge({ count }: { count: number | undefined }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span
+      className="ml-auto shrink-0 rounded-full bg-accent-green px-1.5 py-0.5 text-[0.6rem] font-bold leading-none text-bg-primary"
+      aria-label={`${count} unread`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
   );
 }
 

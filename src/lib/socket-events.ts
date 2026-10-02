@@ -20,6 +20,9 @@ export interface ServerToClientEvents {
   // Direct messages
   'dm:message': (payload: ChatMessagePayload) => void;
   'conversation:message': (payload: ChatMessagePayload) => void;
+  // A sidebar unread count may have moved; the client refetches rather than
+  // guessing a number it cannot derive correctly.
+  'chat:unread': (payload: { scope: string; scopeId: string }) => void;
   // Presence
   'presence:online': (payload: { userId: string }) => void;
   'presence:offline': (payload: { userId: string }) => void;

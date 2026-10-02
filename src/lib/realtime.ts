@@ -88,6 +88,20 @@ export function broadcastToConversation(
   io()?.to(`conversation:${conversationId}`).emit('conversation:message', message);
 }
 
+/**
+ * Tell a specific user's open tabs that a count in their sidebar may have moved.
+ *
+ * The count itself is deliberately not sent: a client cannot know whether the
+ * newcomer had already read the message, so any number computed in the browser
+ * would be a guess. Instead the client refetches, which is correct after a
+ * delete, an edit, or a message sent from a device whose socket was asleep.
+ */
+export function broadcastUnreadChanged(userIds: string[], scope: string, scopeId: string): void {
+  const server = io();
+  if (!server || userIds.length === 0) return;
+  server.to(userIds.map((id) => `user:${id}`)).emit('chat:unread', { scope, scopeId });
+}
+
 export function broadcastDeletion(payload: {
   messageId: string;
   channelId?: string | null;
