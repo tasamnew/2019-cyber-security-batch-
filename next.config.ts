@@ -52,7 +52,12 @@ const nextConfig: NextConfig = {
       {
         // Uploaded resources are user-supplied binaries: never let the browser
         // sniff or render them inline from our origin.
-        source: '/api/files/:path*',
+        //
+        // The negative lookahead keeps this off /api/files/upload. A bare
+        // `/api/files/:path*` matches that too, and the `sandbox` directive
+        // there put the upload's JSON reply in an opaque origin, so the client
+        // received a 201 it could not parse.
+        source: '/api/files/:path((?!upload$).*)',
         headers: [
           { key: 'Content-Security-Policy', value: "default-src 'none'; sandbox" },
           { key: 'X-Content-Type-Options', value: 'nosniff' },

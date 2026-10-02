@@ -562,14 +562,21 @@ function uploadWithProgress(
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
-        // Anything other than JSON here did not come from the route handler —
-        // it is a proxy/gateway page, a framework error page, or an empty body.
-        // Surface the status and a snippet, otherwise this failure is a dead end.
-        const snippet = xhr.responseText.trim().slice(0, 200) || '(empty body)';
+        // Anything other than JSON here did not come from a parseable reply —
+        // log the full response so it survives past the 5s toast.
+        const snippet = xhr.responseText.slice(0, 500);
+        console.error('[upload] non-JSON response', {
+          status: xhr.status,
+          contentType: type,
+          bodyLength: xhr.responseText.length,
+          body: snippet,
+        });
+
+        const detail = xhr.responseText.trim().slice(0, 200) || '(empty body)';
         reject(
           new Error(
             `Upload failed: HTTP ${xhr.status} returned ${type}, not JSON. ` +
-              `Body: ${snippet}`,
+              `Body: ${detail}`,
           ),
         );
         return;
