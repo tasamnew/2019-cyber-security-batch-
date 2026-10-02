@@ -31,7 +31,7 @@
 html,
 body {
   min-height: 100%;
-  background: radial-gradient(1200px 800px at 50% 0%, var(--color-bg-tertiary), var(--color-bg-primary));
+  background: radial-gradient(1200px 800px at 50% 0%, #f8fafc, #ffffff);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
