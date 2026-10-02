@@ -556,18 +556,29 @@ function uploadWithProgress(
     });
 
     xhr.addEventListener('load', () => {
-      let body: { file?: { id: string }; error?: { message?: string } } = {};
+      const type = xhr.getResponseHeader('content-type') ?? '(none)';
+
+      let body: { file?: { id: string }; error?: { message?: string } } | null = null;
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
-        reject(new Error('Upload failed: server returned an unreadable response.'));
+        // Anything other than JSON here did not come from the route handler —
+        // it is a proxy/gateway page, a framework error page, or an empty body.
+        // Surface the status and a snippet, otherwise this failure is a dead end.
+        const snippet = xhr.responseText.trim().slice(0, 200) || '(empty body)';
+        reject(
+          new Error(
+            `Upload failed: HTTP ${xhr.status} returned ${type}, not JSON. ` +
+              `Body: ${snippet}`,
+          ),
+        );
         return;
       }
-      if (xhr.status >= 200 && xhr.status < 300 && body.file) {
+      if (xhr.status >= 200 && xhr.status < 300 && body?.file) {
         onProgress(100);
         resolve({ file: body.file });
       } else {
-        reject(new Error(body.error?.message ?? `Upload failed (HTTP ${xhr.status}).`));
+        reject(new Error(body?.error?.message ?? `Upload failed (HTTP ${xhr.status}).`));
       }
     });
 
