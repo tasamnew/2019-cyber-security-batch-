@@ -44,5 +44,9 @@ export const POST = handler(async (req: Request) => {
     },
   });
 
-  return ok({ file: asset }, 201);
+  const response = ok({ file: asset }, 201);
+  // Repeat the id in a header so publishing can still complete if the JSON body
+  // is ever empty or truncated in transit.
+  response.headers.set('X-File-Id', asset.id);
+  return response;
 });

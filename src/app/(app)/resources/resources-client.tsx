@@ -557,36 +557,42 @@ function uploadWithProgress(
 
     xhr.addEventListener('load', () => {
       const type = xhr.getResponseHeader('content-type') ?? '(none)';
+      const raw = xhr.responseText ?? '';
 
       let body: { file?: { id: string }; error?: { message?: string } } | null = null;
       try {
-        body = JSON.parse(xhr.responseText);
+        body = JSON.parse(raw);
       } catch {
-        // Anything other than JSON here did not come from a parseable reply —
-        // log the full response so it survives past the 5s toast.
-        const snippet = xhr.responseText.slice(0, 500);
+        // Not a parseable reply. The id may still be in the header, so only
+        // report a hard failure once that has been ruled out too.
         console.error('[upload] non-JSON response', {
           status: xhr.status,
           contentType: type,
-          bodyLength: xhr.responseText.length,
-          body: snippet,
+          bodyLength: raw.length,
+          headerFileId: xhr.getResponseHeader('x-file-id'),
+          body: raw.slice(0, 500),
         });
+      }
 
-        const detail = xhr.responseText.trim().slice(0, 200) || '(empty body)';
+      const fileId = body?.file?.id ?? xhr.getResponseHeader('x-file-id');
+      if (xhr.status >= 200 && xhr.status < 300 && fileId) {
+        onProgress(100);
+        resolve({ file: { id: fileId } });
+        return;
+      }
+
+      if (body?.error?.message) {
+        reject(new Error(body.error.message));
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const detail = raw.trim().slice(0, 200) || '(empty body)';
         reject(
-          new Error(
-            `Upload failed: HTTP ${xhr.status} returned ${type}, not JSON. ` +
-              `Body: ${detail}`,
-          ),
+          new Error(`Upload failed: HTTP ${xhr.status} returned ${type}, not JSON. Body: ${detail}`),
         );
         return;
       }
-      if (xhr.status >= 200 && xhr.status < 300 && body?.file) {
-        onProgress(100);
-        resolve({ file: body.file });
-      } else {
-        reject(new Error(body?.error?.message ?? `Upload failed (HTTP ${xhr.status}).`));
-      }
+      reject(new Error(`Upload failed (HTTP ${xhr.status}).`));
     });
 
     xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
