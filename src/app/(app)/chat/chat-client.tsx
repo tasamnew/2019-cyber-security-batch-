@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSocket, useSocketEvent, emitWithAck } from '@/hooks/use-socket';
+import { useSocket, useSocketEvent, emitWithAck, apiFetch } from '@/hooks/use-socket';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, RoleBadge, Spinner, EmptyState } from '@/components/ui';
 import { timeAgo, cn } from '@/lib/utils';
+import { roleAtLeast } from '@/lib/rbac';
+import type { Role } from '@prisma/client';
 import type { ChatMessagePayload } from '@/lib/socket-events';
 
 interface Channel {
@@ -64,6 +66,9 @@ export function ChatClient({
   const [dmSearch, setDmSearch] = useState('');
   const [convoList, setConvoList] = useState(conversations);
   const [connected_] = [connected];
+
+  // Moderators can retract anyone's message; everyone else only their own.
+  const isModerator = roleAtLeast(currentUser.role as Role, 'MODERATOR');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,6 +156,42 @@ export function ChatClient({
 
   useSocketEvent('channel:message', onIncoming, socket);
   useSocketEvent('conversation:message', onConversationIncoming, socket);
+
+  // Someone (possibly another tab) retracted a message: drop it here too.
+  useSocketEvent(
+    'message:deleted',
+    ({ messageId, conversationId }) => {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      // Clear the DM preview only when it was the last message of that thread.
+      setConvoList((prev) =>
+        prev.map((c) =>
+          c.lastMessage && c.lastMessage.mine && conversationId === c.id
+            ? { ...c, lastMessage: null }
+            : c,
+        ),
+      );
+    },
+    socket,
+  );
+
+  /**
+   * Retract a message over REST rather than the socket: the send path already
+   * falls back to HTTP when the live connection is down, and undoing a post is
+   * exactly when you least want to be stuck waiting on a reconnect.
+   */
+  async function removeMessage(message: ChatMessagePayload) {
+    if (!confirm('Delete this message? This cannot be undone.')) return;
+
+    const previous = messages;
+    setMessages((prev) => prev.filter((m) => m.id !== message.id));
+
+    try {
+      await apiFetch(`/api/messages/${message.id}`, { method: 'DELETE' });
+    } catch (err) {
+      setMessages(previous);
+      push(err instanceof Error ? err.message : 'Could not delete the message.', 'error');
+    }
+  }
 
   useSocketEvent(
     'channel:typing',
@@ -452,10 +493,11 @@ export function ChatClient({
               ) : (
                 messages.map((message) => {
                   const mine = message.sender.id === currentUser.id;
+                  const canDelete = mine || isModerator;
                   return (
                     <div
                       key={message.id}
-                      className={cn('flex gap-3', mine && 'flex-row-reverse')}
+                      className={cn('group flex gap-3', mine && 'flex-row-reverse')}
                     >
                       <Avatar name={message.sender.name} seed={message.sender.id} size="sm" />
                       <div className={cn('min-w-0 max-w-[80%]', mine && 'text-right')}>
@@ -463,6 +505,17 @@ export function ChatClient({
                           <span className="text-text-secondary">{message.sender.name}</span>
                           <RoleBadge role={message.sender.role} />
                           <time dateTime={message.createdAt}>{timeAgo(message.createdAt)}</time>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => removeMessage(message)}
+                              title="Delete message"
+                              aria-label={`Delete message from ${message.sender.name}`}
+                              className="rounded px-1 text-xs text-text-tertiary opacity-0 transition hover:text-accent-rose focus-visible:opacity-100 group-hover:opacity-100"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </p>
                         <div
                           className={cn(

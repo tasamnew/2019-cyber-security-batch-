@@ -32,6 +32,8 @@ export type Permission =
   | 'comment:delete:any'
   | 'channel:create'
   | 'channel:manage'
+  | 'message:delete:own'
+  | 'message:delete:any'
   | 'resource:upload'
   | 'resource:delete:own'
   | 'resource:delete:any'
@@ -63,6 +65,7 @@ const PERMISSIONS: Record<Permission, Role> = {
 
   'resource:upload': 'STUDENT',
   'resource:delete:own': 'STUDENT',
+  'message:delete:own': 'STUDENT',
 
   'assignment:create': 'STUDENT',
   'assignment:update:own': 'STUDENT',
@@ -78,6 +81,7 @@ const PERMISSIONS: Record<Permission, Role> = {
   'comment:delete:any': 'MODERATOR',
   'channel:create': 'MODERATOR',
   'channel:manage': 'MODERATOR',
+  'message:delete:any': 'MODERATOR',
   'resource:delete:any': 'MODERATOR',
   'ctf:manage:any': 'MODERATOR',
   'report:resolve': 'MODERATOR',

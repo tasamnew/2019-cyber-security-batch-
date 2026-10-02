@@ -260,11 +260,16 @@ io.on('connection', (socket) => {
       return ack?.({ ok: false, error: 'You can only delete your own messages.' });
     }
 
+    // Tell everyone in the room to drop it, otherwise their list keeps a ghost.
+    const removal = {
+      messageId,
+      channelId: existing.channelId,
+      conversationId: existing.conversationId,
+    };
     await prisma.message.delete({ where: { id: messageId } });
-    if (existing.channelId) {
-      io.to(`channel:${existing.channelId}`).emit('system:notice', {
-        message: 'A message was deleted.',
-      });
+    if (existing.channelId) io.to(`channel:${existing.channelId}`).emit('message:deleted', removal);
+    if (existing.conversationId) {
+      io.to(`conversation:${existing.conversationId}`).emit('message:deleted', removal);
     }
     ack?.({ ok: true });
   });

@@ -11,6 +11,12 @@ export interface ServerToClientEvents {
   // Channel messages
   'channel:message': (payload: ChatMessagePayload) => void;
   'channel:history': (payload: { channelId: string; messages: ChatMessagePayload[] }) => void;
+  // A message was retracted: clients drop it by id.
+  'message:deleted': (payload: {
+    messageId: string;
+    channelId?: string | null;
+    conversationId?: string | null;
+  }) => void;
   // Direct messages
   'dm:message': (payload: ChatMessagePayload) => void;
   'conversation:message': (payload: ChatMessagePayload) => void;

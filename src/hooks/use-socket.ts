@@ -32,7 +32,13 @@ export function useSocket(enabled = true) {
       // withCredentials so the httpOnly session cookie rides along.
       withCredentials: true,
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
+      // Socket.io >= 4.7 does not try the next transport after a failure unless
+      // this is set: a rejected WebSocket upgrade left the client retrying
+      // websocket forever, so it never connected and chat sat on the REST
+      // fallback. Polling is what gets through proxies that block upgrades.
+      tryAllTransports: true,
+      // A proxied free-tier instance can be slow to accept the first connection.
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
 
